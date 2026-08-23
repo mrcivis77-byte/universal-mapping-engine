@@ -178,10 +178,12 @@ class RideApp {
         const pb = this.rt.getPocketBase();
         if (savedRole === 'driver' && pb && pb.authStore && pb.authStore.isValid) {
             this.role = 'driver';
+            this.maybePromptLocation();
             this.hide('role-overlay');
             this.afterAuth().catch(() => {});
             return Promise.resolve();
         }
+        this.maybePromptLocation();
         this.show('role-overlay');
         return new Promise((resolve) => {
             this._roleResolve = resolve;
@@ -547,7 +549,8 @@ class RideApp {
         }
         const pos = this.geo.getPosition();
         if (!pos) {
-            this.reqError('Ubicación no disponible');
+            this.reqError(this.t('transit.location_required'));
+            this.showLocationHelp(null);
             return;
         }
 
@@ -1186,6 +1189,114 @@ class RideApp {
         }
     }
 
+
+
+    /* Gentle daily nudge when the device never got a GPS fix. */
+    maybePromptLocation() {
+        const today = new Date().toISOString().slice(0, 10);
+        setTimeout(() => {
+            if (document.hidden || this.geo.getPosition()) return;
+            if (localStorage.getItem('loc_prompt_off') === today) return;
+            let bar = document.getElementById('loc-banner');
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'loc-banner';
+                bar.style.cssText = 'position:fixed;top:calc(64px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:5900;background:#0f172a;color:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:13px;box-shadow:0 6px 20px rgba(15,23,42,.35);max-width:92vw';
+                document.body.appendChild(bar);
+            }
+            bar.innerHTML = '<span style="flex:1">' + this.t('transit.loc_banner') + '</span>' +
+                '<button id="loc-banner-go" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:13px">' + this.t('transit.loc_activate') + '</button>' +
+                '<button id="loc-banner-x" style="background:none;color:#94a3b8;border:none;font-size:16px;padding:4px">\u2715</button>';
+            bar.style.display = 'flex';
+            bar.querySelector('#loc-banner-go').onclick = () => { bar.style.display = 'none'; this.showLocationHelp(null); };
+            bar.querySelector('#loc-banner-x').onclick = () => {
+                bar.style.display = 'none';
+                localStorage.setItem('loc_prompt_off', today);
+            };
+        }, 6000);
+    }
+
+    /* ------------------------------------------------------------ */
+    /* Guided location help: phone settings + browser permission     */
+    /* ------------------------------------------------------------ */
+    showLocationHelp(afterFix) {
+        let ov = document.getElementById('loc-help');
+        if (!ov) {
+            const st = document.createElement('style');
+            st.textContent = [
+                '#loc-help{position:fixed;inset:0;z-index:6000;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center}',
+                '.loc-card{background:#fff;border-radius:16px 16px 0 0;padding:18px;max-width:430px;width:100%;max-height:82vh;overflow:auto;font-family:inherit}',
+                '.loc-card h3{margin:0 0 10px;font-size:17px;color:#0f172a}',
+                '.loc-step{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px}',
+                '.loc-step.hot{border-color:#f59e0b;background:#fffbeb}',
+                '.loc-step b{display:block;margin-bottom:4px;color:#0f172a;font-size:14px}',
+                '.loc-step p{margin:0;font-size:13px;color:#475569;line-height:1.45}',
+                '.loc-status{font-size:13px;color:#b45309;min-height:18px;margin:6px 0 10px;font-weight:600}',
+                '.loc-btns{display:flex;gap:8px}',
+                '.loc-btn{flex:1;padding:11px;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer}',
+                '.loc-btn.primary{background:#2563eb;color:#fff}',
+                '.loc-btn.ghost{background:#f1f5f9;color:#334155}'
+            ].join('');
+            document.head.appendChild(st);
+            ov = document.createElement('div');
+            ov.id = 'loc-help';
+            document.body.appendChild(ov);
+        }
+        const android = /android/i.test(navigator.userAgent || '');
+        const t = (k) => this.t(k);
+        ov.innerHTML =
+            '<div class="loc-card">' +
+            '<h3>' + t('transit.loc_help_title') + '</h3>' +
+            '<div class="loc-step" id="loc-step-phone"><b>' + t('transit.loc_step_phone') + '</b><p>' +
+            (android ? t('transit.loc_phone_android') : t('transit.loc_phone_ios')) + '</p></div>' +
+            '<div class="loc-step" id="loc-step-browser"><b>' + t('transit.loc_step_browser') + '</b><p>' +
+            (android ? t('transit.loc_browser_android') : t('transit.loc_browser_ios')) + '</p></div>' +
+            '<div class="loc-status" id="loc-status"></div>' +
+            '<div class="loc-btns">' +
+            '<button class="loc-btn ghost" id="loc-close">' + t('transit.loc_close') + '</button>' +
+            '<button class="loc-btn primary" id="loc-retry">' + t('transit.loc_try_again') + '</button>' +
+            '</div></div>';
+        ov.style.display = 'flex';
+        const close = () => { ov.style.display = 'none'; };
+        ov.querySelector('#loc-close').onclick = close;
+        const statusEl = ov.querySelector('#loc-status');
+        const hot = (id) => {
+            ['loc-step-phone', 'loc-step-browser'].forEach((x) => {
+                const el = ov.querySelector('#' + x);
+                if (el) el.classList.toggle('hot', x === id);
+            });
+        };
+        ov.querySelector('#loc-retry').onclick = () => {
+            if (!navigator.geolocation) return;
+            statusEl.textContent = '...';
+            navigator.geolocation.getCurrentPosition(() => {
+                let n = 0;
+                const iv = setInterval(() => {
+                    if (this.geo.getPosition() || ++n > 12) {
+                        clearInterval(iv);
+                        if (this.geo.getPosition()) {
+                            close();
+                            this.toast(t('transit.loc_found'));
+                            if (afterFix) afterFix();
+                        } else {
+                            statusEl.textContent = t('transit.loc_status_no_signal');
+                            hot('loc-step-phone');
+                        }
+                    }
+                }, 500);
+            }, (err) => {
+                if (err && err.code === 1) {
+                    statusEl.textContent = t('transit.loc_status_denied_browser');
+                    hot('loc-step-browser');
+                } else {
+                    statusEl.textContent = t('transit.loc_status_no_signal');
+                    hot('loc-step-phone');
+                }
+            }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 });
+        };
+        ov.querySelector('#loc-retry').click();
+    }
+
     async setDuty(on) {
         // Vehicle photo gate: no photo on file -> no going on duty. Open the
         // info panel where the upload lives so the fix is one tap away.
@@ -1195,35 +1306,12 @@ class RideApp {
             if (panel) panel.classList.remove('hidden');
             return;
         }
-        // Location gate: without a GPS fix nothing can be published - going
-        // "on duty" here would lie to everyone (server never hears about it).
-        // Walk the driver through granting location instead of failing quiet:
-        // explain -> trigger the browser prompt -> wait briefly for a fix.
+        // Location gate: without a GPS fix nothing can be published.
+        // Open the guided help sheet and continue automatically once
+        // the driver gets a fix.
         if (on && !this.geo.getPosition()) {
-            const proceed = await this.confirm(
-                this.t('transit.location_required'),
-                this.t('transit.location_retry')
-            );
-            if (!proceed) return;
-            if (navigator.geolocation) {
-                await new Promise((resolve) => {
-                    navigator.geolocation.getCurrentPosition(
-                        () => resolve(),
-                        () => resolve(),
-                        { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 }
-                    );
-                });
-            }
-            // The manager's own watch feeds currentPosition; give it a moment.
-            for (let i = 0; i < 12 && !this.geo.getPosition(); i++) {
-                await new Promise((r) => setTimeout(r, 500));
-            }
-            if (!this.geo.getPosition()) {
-                this.toast(this.t('transit.location_denied'));
-                const panel = document.getElementById('info-panel');
-                if (panel) panel.classList.remove('hidden');
-                return;
-            }
+            this.showLocationHelp(() => this.setDuty(true));
+            return;
         }
         const ok = await this.confirm(
             on ? this.t('transit.duty_on_confirm') : this.t('transit.duty_off_confirm'),

@@ -154,6 +154,172 @@
       ts: Number(rec.ts || 0), type: (rec.cat ? "shop" : "spot")
     };
   }
+
+  /* ---------------- Offline sync (offshore mode) ----------------
+   * Writes made without connectivity are stored in localStorage and
+   * replayed automatically when the device comes back online. */
+  var QKEY = "fish-sync-queue";
+  function toast(msg){
+    var t = document.createElement("div");
+    t.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom));z-index:6500;background:#0f172a;color:#fff;border-radius:10px;padding:9px 14px;font-size:13px;box-shadow:0 4px 14px rgba(15,23,42,.4);max-width:88vw;text-align:center";
+    t.textContent = msg; document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 3200);
+  }
+  function qAll(){ try { return JSON.parse(localStorage.getItem(QKEY) || "[]"); } catch(e){ return []; } }
+  function qSave(q){ try { localStorage.setItem(QKEY, JSON.stringify(q)); } catch(e){} }
+  function netBadge(){
+    var b = document.getElementById("net-badge");
+    if (!b) {
+      b = document.createElement("div");
+      b.id = "net-badge";
+      b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:5200;background:#0f172a;color:#fff;border-radius:10px;padding:7px 12px;font-size:12px;display:none;box-shadow:0 4px 14px rgba(15,23,42,.35);white-space:nowrap";
+      document.body.appendChild(b);
+    }
+    var n = qAll().length;
+    if (!navigator.onLine) { b.textContent = LOC.offline_badge; b.style.display = "block"; }
+    else if (n > 0) { b.textContent = n + " · " + LOC.pending_sync; b.style.display = "block"; setTimeout(flushQueue, 1500); }
+    else { b.style.display = "none"; }
+  }
+  function qSend(url, opts) {
+    return new Promise(function (resolve, reject) {
+      fetch(url, opts).then(resolve, function () {
+        var q = qAll(); q.push({ url: url, opts: opts, ts: Date.now() }); qSave(q); netBadge();
+        reject(new Error("offline-queued"));
+      });
+    });
+  }
+  function flushQueue() {
+    if (!navigator.onLine) return;
+    var q = qAll();
+    if (!q.length) { netBadge(); return; }
+    var entry = q[0];
+    fetch(entry.url, entry.opts).then(function (r) {
+      if (!r.ok && r.status >= 500) throw new Error("server");
+      q.shift(); qSave(q); flushQueue();
+    }).catch(function () { netBadge(); });
+  }
+  window.addEventListener("online", function(){ flushQueue(); });
+  setInterval(flushQueue, 60000);
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) flushQueue(); });
+
+
+  function addChooser(extras, catLabel, cat, onSaved){
+    var ov = document.createElement("div");
+    ov.style.cssText = "position:fixed;inset:0;z-index:6100;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center";
+    var card = document.createElement("div");
+    card.style.cssText = "background:#fff;border-radius:16px 16px 0 0;padding:18px;max-width:430px;width:100%";
+    card.innerHTML =
+      '<h3 style="margin:0 0 12px;font-size:17px;color:#0f172a">' + esc(LOC.add_choose_title) + '</h3>' +
+      '<button class="ch-gps" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;margin-bottom:8px;font-size:14px;font-weight:600;color:#0f172a"><span style="font-size:20px">\uD83D\uDCCD</span><span>' + esc(LOC.add_use_gps) + '</span></button>' +
+      '<button class="ch-map" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;margin-bottom:8px;font-size:14px;font-weight:600;color:#0f172a"><span style="font-size:20px">\uD83D\uDDFA</span><span>' + esc(LOC.add_pick_map) + '</span></button>' +
+      '<button class="ch-x" style="width:100%;padding:12px;border:none;border-radius:12px;background:#f1f5f9;color:#334155;font-weight:700;font-size:14px">' + esc(LOC.loc_close) + '</button>';
+    ov.appendChild(card);
+    document.body.appendChild(ov);
+    var close = function(){ ov.remove(); };
+    ov.addEventListener("click", function(e){ if (e.target === ov) close(); });
+    card.querySelector(".ch-x").onclick = close;
+    card.querySelector(".ch-gps").onclick = function(){
+      close();
+      if (!extras.getPos() || !extras.getPos().lat) { locSheet(null); return; }
+      showSaveModal(catLabel, function (comment, pub, photo) {
+        extras.placeAtMe(catLabel, cat || null, comment, pub, photo);
+        renderLocationsList(); if (onSaved) onSaved();
+      });
+    };
+    card.querySelector(".ch-map").onclick = function(){
+      close();
+      extras.startPick(function(center){
+        showSaveModal(catLabel, function (comment, pub, photo) {
+          extras.placeAt(center.lat, center.lng, comment || catLabel, cat || null, comment, pub, photo);
+          renderLocationsList(); if (onSaved) onSaved();
+        });
+      });
+    };
+  }
+
+  /* ---------------- Guided location help (sheet) ---------------- */
+  function locSheet(afterFix){
+    var ov = document.getElementById("loc-help");
+    if (!ov) {
+      var st = document.createElement("style");
+      st.textContent = "#loc-help{position:fixed;inset:0;z-index:6000;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center}" +
+        ".loc-card{background:#fff;border-radius:16px 16px 0 0;padding:18px;max-width:430px;width:100%;max-height:82vh;overflow:auto}" +
+        ".loc-card h3{margin:0 0 10px;font-size:17px;color:#0f172a}" +
+        ".loc-step{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px}" +
+        ".loc-step.hot{border-color:#f59e0b;background:#fffbeb}" +
+        ".loc-step b{display:block;margin-bottom:4px;font-size:14px;color:#0f172a}" +
+        ".loc-step p{margin:0;font-size:13px;color:#475569;line-height:1.45}" +
+        ".loc-status{font-size:13px;color:#b45309;min-height:18px;margin:6px 0 10px;font-weight:600}" +
+        ".loc-btns{display:flex;gap:8px}.loc-btn{flex:1;padding:11px;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer}" +
+        ".loc-btn.primary{background:#2563eb;color:#fff}.loc-btn.ghost{background:#f1f5f9;color:#334155}";
+      document.head.appendChild(st);
+      ov = document.createElement("div"); ov.id = "loc-help"; document.body.appendChild(ov);
+    }
+    var android = /android/i.test(navigator.userAgent || "");
+    ov.innerHTML =
+      '<div class="loc-card"><h3>' + esc(LOC.loc_help_title) + "</h3>" +
+      '<div class="loc-step" id="loc-step-phone"><b>' + esc(LOC.loc_step_phone) + "</b><p>" +
+      esc(android ? LOC.loc_phone_android : LOC.loc_phone_ios) + "</p></div>" +
+      '<div class="loc-step" id="loc-step-browser"><b>' + esc(LOC.loc_step_browser) + "</b><p>" +
+      esc(android ? LOC.loc_browser_android : LOC.loc_browser_ios) + "</p></div>" +
+      '<div class="loc-status" id="loc-status"></div>' +
+      '<div class="loc-btns"><button class="loc-btn ghost" id="loc-close">' + esc(LOC.loc_close) + "</button>" +
+      '<button class="loc-btn primary" id="loc-retry">' + esc(LOC.loc_try_again) + "</button></div></div>";
+    ov.style.display = "flex";
+    var close = function(){ ov.style.display = "none"; };
+    ov.querySelector("#loc-close").onclick = close;
+    var statusEl = ov.querySelector("#loc-status");
+    var hot = function(id){ ["loc-step-phone","loc-step-browser"].forEach(function(x){
+      var el = ov.querySelector("#"+x); if (el) el.classList.toggle("hot", x === id); }); };
+    ov.querySelector("#loc-retry").onclick = function(){
+      if (!navigator.geolocation) return;
+      statusEl.textContent = "...";
+      navigator.geolocation.getCurrentPosition(function(){
+        var n = 0; var iv = setInterval(function(){
+          if ((window.__geo && window.__geo.getPosition && window.__geo.getPosition()) || ++n > 12) {
+            clearInterval(iv);
+            close();
+            toast(LOC.loc_found);
+            if (afterFix) afterFix();
+          }
+        }, 500);
+      }, function(err){
+        if (err && err.code === 1) { statusEl.textContent = LOC.loc_status_denied_browser; hot("loc-step-browser"); }
+        else { statusEl.textContent = LOC.loc_status_no_signal; hot("loc-step-phone"); }
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 });
+    };
+    ov.querySelector("#loc-retry").click();
+  }
+  function locBanner(){
+    var today = new Date().toISOString().slice(0,10);
+    setTimeout(function(){
+      if (document.hidden || window.__hasFix) return;
+      if (localStorage.getItem("loc_prompt_off") === today) return;
+      var bar = document.createElement("div");
+      bar.style.cssText = "position:fixed;top:calc(108px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:5900;background:#0f172a;color:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:13px;max-width:92vw";
+      bar.innerHTML = "<span style=\"flex:1\">" + esc(LOC.loc_banner) + "</span>" +
+        "<button style=\"background:#2563eb;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:13px\">" + esc(LOC.loc_activate) + "</button>" +
+        "<button style=\"background:none;color:#94a3b8;border:none;font-size:16px;padding:4px\">\u2715</button>";
+      document.body.appendChild(bar);
+      var autoT = setTimeout(function(){ bar.remove(); }, 8000);
+      var btns = bar.querySelectorAll("button");
+      btns[0].onclick = function(){ clearTimeout(autoT); bar.remove(); locSheet(null); };
+      btns[1].onclick = function(){ clearTimeout(autoT); bar.remove(); localStorage.setItem("loc_prompt_off", today); };
+    }, 6000);
+  }
+
+  // LOC: current-language lookup for the offline/loc strings added in lang.js.
+  var LOC = {};
+  function locReload(){
+    var lang = (localStorage.getItem("fish-lang") || "es");
+    var pack = (window.FISH_LOCALES && window.FISH_LOCALES[lang]) || (window.FISH_LOCALES && window.FISH_LOCALES.es) || {};
+    ["offline_badge","pending_sync","loc_help_title","loc_step_phone","loc_phone_android","loc_phone_ios",
+     "loc_step_browser","loc_browser_android","loc_browser_ios","loc_try_again","loc_close",
+     "loc_status_denied_browser","loc_status_no_signal","loc_found","loc_banner","loc_activate","add_choose_title","add_use_gps","add_pick_map","pick_confirm","pick_cancel","pick_hint"].forEach(function(k){
+      LOC[k] = (pack[k] !== undefined) ? pack[k] : (((window.FISH_LOCALES||{}).es||{})[k] !== undefined ? window.FISH_LOCALES.es[k] : k);
+    });
+  }
+
   function pbFetchLocations(){
     // Anonymous read from PB `locations` (public rules). Best-effort: [] on any error/404
     // so the app degrades gracefully to localStorage-only (v16 behavior) if PB is down.
@@ -170,6 +336,8 @@
         arr.forEach(function(x){ out.push({key:k.key,type:k.type,pbid:(x.pbid||null),id:x.id||(x.lat+","+x.lng+","+(x.ts||0)),label:x.label||(k.type==="spot"?"Tu punto":"Tienda"),comment:x.comment||"",pub:!!x.pub,lat:x.lat,lng:x.lng,ts:x.ts||0,cat:x.cat,photo:x.photo||""}); });
       });
       var remote = await pbFetchLocations();                  // cross-device pins (anonymous PB)
+      var lkeys = {}; out.forEach(function(l){ lkeys[(l.lat+","+l.lng+","+l.ts)] = 1; });
+      remote = remote.filter(function(r){ return !lkeys[(r.lat+","+r.lng+","+r.ts)]; });
       return remote.concat(out.filter(function(l){ return !l.pbid; }));  // PB authoritative for pbid pins
     } catch (e) { return []; }
   }
@@ -185,7 +353,7 @@
   }
   function gotoLocation(x){ var tab=(x.type==="shop"?"tab-shops":"tab-spots"); var nav=document.querySelector('[data-tab="'+tab.replace("tab-","")+'"]'); if(nav){ nav.click(); } window.__centerPending={tab:tab,label:x.label,lat:x.lat,lng:x.lng}; }
   function deleteLocation(x){
-    if (x && x.pbid) { fetch(API+"collections/locations/"+encodeURIComponent(x.pbid), {method:"DELETE"}).catch(function(){}); }
+    if (x && x.pbid) { qSend(API+"collections/locations/"+encodeURIComponent(x.pbid), {method:"DELETE"}).catch(function(){}); }
     var arr=[]; try{arr=JSON.parse(localStorage.getItem(x.key||"")||"[]")}catch(e){} arr=arr.filter(function(p){ var pid=p.id||(p.lat+","+p.lng+","+(p.ts||0)); return pid!==x.id && !(p.pbid && p.pbid===x.pbid); }); try{localStorage.setItem(x.key||"",JSON.stringify(arr))}catch(e){} var _mtab=(x.type==="shop"?"tab-shops":"tab-spots"); var _ctrl=(window.__geo||{})[_mtab]; if(_ctrl&&_ctrl.removeById){_ctrl.removeById(x.id);} renderLocationsList();
   }
   function showSaveModal(label, onSave){
@@ -205,6 +373,7 @@
         var fr=new FileReader(); fr.onload=function(ev){ photoData=ev.target.result; }; fr.readAsDataURL(f);
       };
     }
+    var ph = document.getElementById("pub-hint"); if (ph) { ph.setAttribute("data-i18n","pub_hint"); ph.textContent = t('pub_hint'); }
     m.classList.add("open"); m.setAttribute("aria-hidden","false");
     function cleanup(){ m.classList.remove("open"); m.setAttribute("aria-hidden","true"); }
     document.getElementById("save-ok").onclick=function(){ var c=document.getElementById("save-comment").value.trim(); var p=document.getElementById("save-public").checked; var ph=photoData; cleanup(); onSave(c,p,ph); };
@@ -234,6 +403,7 @@
     function startWatch() {
       if (!navigator.geolocation) { return; }
       watchId = navigator.geolocation.watchPosition(function (p) {
+        window.__hasFix = true;
         curPos = { lat: p.coords.latitude, lng: p.coords.longitude };
         placeBlue(curPos.lat, curPos.lng);
         if (following) { map.setView([curPos.lat, curPos.lng], map.getZoom() < 13 ? 13 : map.getZoom()); }
@@ -245,25 +415,12 @@
       // A tap (user gesture) is what reliably releases the geolocation permission
       // prompt — browsers defer page-load-initiated prompts until a gesture.
       navigator.geolocation.getCurrentPosition(function (p) {
+        window.__hasFix = true;
         curPos = { lat: p.coords.latitude, lng: p.coords.longitude };
         placeBlue(curPos.lat, curPos.lng);
         if (following) { map.setView([curPos.lat, curPos.lng], map.getZoom() < 13 ? 13 : map.getZoom()); }
       }, function () {}, { enableHighAccuracy: true, timeout: 10000 });
     }
-    // 📍 Localízame button — lets the user trigger the permission prompt immediately
-    // on the open map (one tap) instead of waiting for a tab switch.
-    (function () {
-      var ov = map.getContainer() && map.getContainer().parentElement ? map.getContainer().parentElement.querySelector(".map-overlay") : null;
-      if (!ov) return;
-      var lb = document.createElement("button");
-      lb.type = "button"; lb.id = "btn-locate"; lb.className = "fab";
-      lb.setAttribute("aria-label", "Localizarme");
-      lb.textContent = "📍"; lb.style.bottom = "150px"; lb.style.right = "20px";
-      lb.style.fontSize = "22px"; lb.style.background = "#fff"; lb.style.color = "#0284c7";
-      lb.style.border = "1px solid #cbd5e1";
-      ov.appendChild(lb);
-      lb.addEventListener("click", function (e) { e.preventDefault(); locateMe(); });
-    })();
     var addPin = function (p) {
       var m = L.marker([p.lat, p.lng], { icon: iconFor(p.cat || null) }); m.__cat = p.cat || null;
       var pop = "<b>" + esc(p.label || labelFor(p.cat)) + "</b>" + (p.comment ? "<br>" + esc(p.comment) : "");
@@ -282,23 +439,60 @@
       try { remote.forEach(function (r) { if (r.type === pbType) { addPin(r); } }); } catch (e) {}
       refreshFilter();
     }).catch(function () {});
+    var api;
     var persist = function () { var kept = pinMarkers.filter(function (pm) { return pm.data.dropped; }).map(function (pm) { return pm.data; }); try { localStorage.setItem(opts.storageKey || "fish-map-pins", JSON.stringify(kept)); } catch (e2) {} };
-    return {
+    api = {
       getPos: function () { return curPos; },
       placeAtMe: function (label, cat, comment, pub, photo) {
         if (!curPos || !curPos.lat) { return false; }
+        return api.placeAt(curPos.lat, curPos.lng, label, cat, comment, pub, photo);
+      },
+      getCenter: function () { var c = map.getCenter(); return { lat: c.lat, lng: c.lng }; },
+      startPick: function (onDone) {
+        following = false;
+        var hint = document.createElement("div");
+        hint.style.cssText = "position:fixed;top:calc(108px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:6200;background:#0f172a;color:#fff;border-radius:10px;padding:8px 14px;font-size:13px;white-space:nowrap";
+        hint.textContent = LOC.pick_hint;
+        var bar = document.createElement("div");
+        bar.style.cssText = "position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:6200;display:flex;gap:8px";
+        bar.innerHTML = '<button class="pk-c" style="padding:11px 18px;border:none;border-radius:10px;font-weight:700;font-size:14px;background:#fff;color:#334155">' + esc(LOC.pick_cancel) + '</button>' +
+          '<button class="pk-o" disabled style="padding:11px 18px;border:none;border-radius:10px;font-weight:700;font-size:14px;background:#2563eb;color:#fff;opacity:.5">' + esc(LOC.pick_confirm) + '</button>';
+        document.body.appendChild(hint); document.body.appendChild(bar);
+        var tmp = null;
+        var okBtn = bar.querySelector(".pk-o");
+        function onTap(e) {
+          if (tmp) { map.removeLayer(tmp); }
+          tmp = L.marker(e.latlng, { icon: genericIcon }).addTo(map);
+          okBtn.disabled = false; okBtn.style.opacity = "1";
+        }
+        map.on("click", onTap);
+        function cleanup() {
+          map.off("click", onTap);
+          if (tmp) { map.removeLayer(tmp); }
+          hint.remove(); bar.remove();
+        }
+        bar.querySelector(".pk-c").onclick = cleanup;
+        okBtn.onclick = function () {
+          if (!tmp) return;
+          var ll = tmp.getLatLng();
+          cleanup();
+          onDone({ lat: ll.lat, lng: ll.lng });
+        };
+      },
+      placeAt: function (latv, lngv, label, cat, comment, pub, photo) {
+        if (!latv && latv !== 0) { return false; }
         var id = (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
         var lbl = (comment && String(comment).trim()) || label || labelFor(cat);
-        var mk = L.marker([curPos.lat, curPos.lng], { icon: iconFor(cat || null) }); mk.__cat = cat || null;
+        var mk = L.marker([latv, lngv], { icon: iconFor(cat || null) }); mk.__cat = cat || null;
         var pop = "<b>" + esc(lbl) + "</b>" + (comment && String(comment).trim() && lbl !== comment ? "<br>" + esc(comment) : "");
         if (photo) { pop += '<br><img src="' + esc(photo) + '" style="max-width:120px;max-height:90px;border-radius:8px;margin-top:4px">'; }
         mk.bindPopup(pop, { autoClose: false }).addTo(map).openPopup();
-        var pm = { m: mk, data: { lat: curPos.lat, lng: curPos.lng, label: lbl, cat: cat || null, comment: comment || "", pub: !!pub, dropped: true, id: id, ts: Date.now(), photo: photo || null } };
+        var pm = { m: mk, data: { lat: latv, lng: lngv, label: lbl, cat: cat || null, comment: comment || "", pub: !!pub, dropped: true, id: id, ts: Date.now(), photo: photo || null } };
         pinMarkers.push(pm);
         persist(); refreshFilter();
         // Cross-device sync: best-effort anonymous POST to PB `locations` (public create rule).
         // Degrades to local-only (localStorage) if PB is unreachable — preserves v16 behavior.
-        fetch(API + "collections/locations/records", {
+        qSend(API + "collections/locations/records", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lat: String(pm.data.lat), lng: String(pm.data.lng), label: pm.data.label, comment: pm.data.comment || "", cat: pm.data.cat || "", pub: String(!!pm.data.pub), photo: pm.data.photo || "", ts: String(pm.data.ts) })
@@ -309,13 +503,38 @@
       },
       setCategory: function (c) { activeCat = c; refreshFilter(); },
       activeCat: function () { return activeCat; },
-      removeById: function (id) { for (var i = pinMarkers.length - 1; i >= 0; i--) { if (pinMarkers[i].data.id === id) { if (pinMarkers[i].data.pbid) { fetch(API+"collections/locations/"+encodeURIComponent(pinMarkers[i].data.pbid), {method:"DELETE"}).catch(function(){}); } if (map.hasLayer(pinMarkers[i].m)) { map.removeLayer(pinMarkers[i].m); } pinMarkers.splice(i, 1); } } persist(); },
+      removeById: function (id) { for (var i = pinMarkers.length - 1; i >= 0; i--) { if (pinMarkers[i].data.id === id) { if (pinMarkers[i].data.pbid) { qSend(API+"collections/locations/"+encodeURIComponent(pinMarkers[i].data.pbid), {method:"DELETE"}).catch(function(){}); } if (map.hasLayer(pinMarkers[i].m)) { map.removeLayer(pinMarkers[i].m); } pinMarkers.splice(i, 1); } } persist(); },
       locateMe: locateMe,
       stop: function () { if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; } if (blueDot) { map.removeLayer(blueDot); blueDot = null; } }
     };
+    return api;
   }
 
 
+  function wireFab(id, getExtras, spotLabel, kind){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("click", function(e){
+      e.preventDefault(); e.stopPropagation();
+      if (kind === "shop") {
+        var catMap = window.__shopCats || {};
+        var active = window.__activeShopCat || "local-guide";
+        var ci = catMap[active] || { label: t('shops_add_tooltip') };
+        addChooser(getExtras(), ci.label, active);
+      } else {
+        addChooser(getExtras(), spotLabel, null);
+      }
+    });
+  }
+  function bootExtras(){
+    locReload(); netBadge(); locBanner();
+    wireFab("btn-add-spot", function(){ return (window.__geo||{})["tab-spots"]; }, t('spots_your_spot'), null);
+    wireFab("btn-add-shop", function(){ return (window.__geo||{})["tab-shops"]; }, null, "shop");
+    window.onerror = function(msg){ try { toast(String(msg).slice(0,80)); } catch(e){} };
+    if ("serviceWorker" in navigator && location.protocol === "https:") {
+      navigator.serviceWorker.register("/fish/fish-sw.js").catch(function(){});
+    }
+  }
   function initFor(id) {
     if (inited[id]) { if (window.__map && window.__map[id]) window.__map[id].invalidateSize(); return; }
     inited[id] = true;
@@ -344,15 +563,7 @@
       storageKey: "fish-spots-pins", defaultLabel: t('spots_your_spot'), locHere: "Estas aqui", follow: true, pbType: "spot"
     });
     window.__geo = window.__geo || {}; window.__geo["tab-spots"] = spotExtras;
-    var fab = document.getElementById("btn-add-spot");
-    if (fab) fab.addEventListener("click", function (e) {
-      e.preventDefault();
-      if (!spotExtras.getPos() || !spotExtras.getPos().lat) { alert("Activa la geolocalizacion para guardar tu ubicacion"); return; }
-      showSaveModal(t('spots_your_spot'), function (comment, pub, photo) {
-        if (!spotExtras.placeAtMe(t('spots_your_spot'), null, comment, pub, photo)) { alert("No se pudo obtener tu ubicacion"); }
-        renderLocationsList();
-      });
-    });
+    // fab handled by wireFab at boot
   }
 
   function initShopsMap() {
@@ -386,17 +597,7 @@
         });
       });
     }
-    var sFab = document.getElementById("btn-add-shop");
-    if (sFab) sFab.addEventListener("click", function (e) {
-      e.preventDefault();
-      var pos = shopExtras.getPos();
-      if (!pos || !pos.lat) { alert("Activa la geolocalizacion para guardar tu ubicacion"); return; }
-      var ci = catMap[window.__activeShopCat || 'alquileres'] || { label: "Tienda", icon: null };
-      showSaveModal(ci.label, function (comment, pub, photo) {
-        if (!shopExtras.placeAtMe(ci.label, window.__activeShopCat || null, comment, pub, photo)) { alert("No se pudo obtener tu ubicacion"); }
-        renderLocationsList();
-      });
-    });
+    // fab handled by wireFab at boot
   }
   function photoUrl(rec) {
     if (!rec) return "images/fish-placeholder.svg";
@@ -487,7 +688,7 @@
 
     function send() {
       save.disabled = true; save.textContent = t('addfish_saving');
-      fetch(API + "collections/species/records", { method: "POST", body: fd })
+      qSend(API + "collections/species/records", { method: "POST", body: fd })
         .then(function (r) { return r.ok ? r.json() : r.text().then(function (t) { throw new Error(t); }); })
         .then(function (rec) {
           window.__userSpecies.unshift({
@@ -560,5 +761,6 @@
   }
 
   applyLang();
+  bootExtras();
   start();
 })();

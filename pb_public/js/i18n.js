@@ -82,7 +82,7 @@ class I18nEngine {
      */
     async loadLanguage(language) {
         try {
-            const response = await fetch(`${this.localesPath}${language}.json?v=7`);
+            const response = await fetch(`${this.localesPath}${language}.json?v=9`);
             if (!response.ok) {
                 throw new Error(`Failed to load ${language}.json`);
             }

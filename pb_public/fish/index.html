@@ -79,7 +79,7 @@
       </div>
     </section>
 
-    <div id="save-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="save-title"><div class="modal-body"><h3 id="save-title" data-i18n="spots_save_title">Guardar mi ubicacion</h3><textarea id="save-comment" data-i18n="spots_save_comment" rows="3" placeholder="Comentario / captura (opcional)"></textarea><label class="save-opt"><input type="checkbox" id="save-public"><span data-i18n="spots_save_public">Publico</span></label><label class="save-opt" style="display:flex;align-items:center;gap:6px"><input type="file" id="save-photo" accept="image/*"><span data-i18n="form_photo">Foto</span></label><div id="save-preview" class="preview-box"></div><div class="modal-actions"><button id="save-cancel" class="btn" data-i18n="modal_close">Cancelar</button><button id="save-ok" class="btn primary" data-i18n="spots_save_ok">Guardar</button></div></div></div>
+    <div id="save-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="save-title"><div class="modal-body"><h3 id="save-title" data-i18n="spots_save_title">Guardar mi ubicacion</h3><textarea id="save-comment" data-i18n="spots_save_comment" rows="3" placeholder="Comentario / captura (opcional)"></textarea><label class="save-opt"><input type="checkbox" id="save-public"><span data-i18n="spots_save_public">Publico</span></label><small id="pub-hint" style="display:block;margin:-4px 0 8px 2px;color:#64748b;font-size:12px"></small><label class="save-opt" style="display:flex;align-items:center;gap:6px"><input type="file" id="save-photo" accept="image/*"><span data-i18n="form_photo">Foto</span></label><div id="save-preview" class="preview-box"></div><div class="modal-actions"><button id="save-cancel" class="btn" data-i18n="modal_close">Cancelar</button><button id="save-ok" class="btn primary" data-i18n="spots_save_ok">Guardar</button></div></div></div>
   </main>
 
   <!-- Fish detail modal -->
@@ -184,8 +184,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="guide-data.js?v=2"></script>
-  <script src="lang.js?v=7"></script>
-  <script src="fish.js?v=18"></script>
+  <script src="lang.js?v=10"></script>
+  <script src="fish.js?v=27"></script>
   <!-- App Switcher: home + sibling apps -->
   <style>
     .app-switcher{position:fixed;left:0;right:0;bottom:calc(70px + env(safe-area-inset-bottom));z-index:1100;display:flex;background:#fff;border-top:1px solid #e2e8f0;padding:5px 2px;box-shadow:0 -2px 8px rgba(0,0,0,.08)}
