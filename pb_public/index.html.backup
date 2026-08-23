@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title data-i18n="app.title">Community Transit</title>
+
+    <!-- PWA / home screen -->
+    <link rel="icon" type="image/png" href="/images/favicon-32x32.png?v=2" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/images/favicon-16x16.png?v=2" sizes="16x16" />
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png?v=2" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1e3a8a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Yucatán" />
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/map.css?v=14" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Loading overlay */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Header controls */
+        .map-controls {
+            position: fixed;
+            top: calc(72px + env(safe-area-inset-top, 0px));
+            left: 16px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        /* Navigation / status bar (top) */
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #e2e8f0;
+            /* Respect the notched-phone safe area so the bar clears the
+               status/notch when held upright on iPhone & Android. */
+            padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .app-title {
+            font-weight: 700;
+            color: #1e3a8a;
+            font-size: 16px;
+            white-space: nowrap;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.disconnected {
+            background: #ef4444;
+            animation: none;
+        }
+
+        /* Request ride / Cancel ride (centered in the nav bar) */
+        .request-btn {
+            padding: 10px 22px;
+            border: none;
+            border-radius: 24px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+            cursor: pointer;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .request-btn.cancel {
+            background: #ef4444;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+        }
+
+        /* On/off duty toggle (driver), centered in the nav bar */
+        .nav-duty-btn {
+            padding: 10px 22px;
+            border: none;
+            border-radius: 24px;
+            background: #64748b;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            box-shadow: 0 4px 14px rgba(100, 116, 139, 0.4);
+            cursor: pointer;
+        }
+
+        .nav-duty-btn.active {
+            background: #10b981;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+        }
+
+        .nav-duty-btn.hidden {
+            display: none;
+        }
+
+        /* Driver controls group: centered so duty + full never overlap the
+           app title on the left or the gear button on the right. */
+        .driver-controls {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            max-width: calc(100vw - 160px);
+        }
+
+        .driver-controls.hidden {
+            display: none;
+        }
+
+        /* Full / available toggle — sits left of the centered duty button */
+        .nav-full-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 24px;
+            background: #10b981;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .nav-full-btn.active {
+            background: #ef4444;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45);
+        }
+
+        .nav-full-btn.hidden {
+            display: none;
+        }
+
+        /* Request panel — clean dropdown anchored below the nav bar */
+        .request-dropdown {
+            position: fixed;
+            top: calc(60px + env(safe-area-inset-top, 0px));
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            max-width: 380px;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+            padding: 18px 18px 14px;
+            z-index: 3200;
+            box-sizing: border-box;
+        }
+
+        .request-dropdown.hidden {
+            display: none;
+        }
+
+        .request-dropdown h3 {
+            margin: 0 0 14px;
+            font-size: 18px;
+            color: #1e293b;
+        }
+
+        .request-dropdown input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        .request-dropdown .req-label {
+            display: block;
+            font-size: 13px;
+            color: #64748b;
+            margin: 6px 0;
+        }
+
+        .request-dropdown .dest-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .request-dropdown .ride-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .request-dropdown .ride-btn.primary { background: #2563eb; color: #fff; }
+        .request-dropdown .ride-btn.ghost { background: #f1f5f9; color: #334155; }
+
+        .request-dropdown .ride-error {
+            color: #dc2626;
+            font-size: 13px;
+            min-height: 18px;
+            margin-top: 4px;
+        }
+
+        .request-dropdown .req-dest-display {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .request-dropdown .hidden {
+            display: none;
+        }
+
+        /* App info / gear button (top-right) */
+        .gear-btn {
+            background: transparent;
+            border: none;
+            color: #334155;
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .gear-btn:hover {
+            color: #1e40af;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: calc(56px + env(safe-area-inset-top, 0px));
+            right: 12px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+            padding: 16px;
+            min-width: 220px;
+            z-index: 1150;
+        }
+
+        .info-panel.hidden {
+            display: none;
+        }
+
+        .info-panel h4 {
+            margin: 0 0 10px;
+            color: #1e3a8a;
+            font-size: 14px;
+        }
+
+        .info-route-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-route-section.hidden {
+            display: none;
+        }
+
+        .info-route-section label {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .info-route-section input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .info-route-section .ride-btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .info-taco-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .info-taco-link:hover {
+            text-decoration: underline;
+        }
+
+        .info-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: #334155;
+        }
+
+        .info-section summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: #1e3a8a;
+            padding: 4px 0;
+            outline: none;
+        }
+
+        .info-section-body {
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .info-section-body p {
+            margin: 6px 0;
+        }
+
+        .info-section-body .info-subtitle {
+            font-weight: 600;
+            color: #1e3a8a;
+            margin-top: 10px;
+        }
+
+        .info-whatsapp-link {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 8px 14px;
+            background: #25d366;
+            color: #fff;
+            font-weight: 600;
+            font-size: 13px;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+
+        .info-whatsapp-link:hover {
+            background: #1eb855;
+        }
+
+        .info-panel {
+            max-height: calc(100dvh - 90px);
+            overflow-y: auto;
+        }
+
+        @keyframes slide-in {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slide-out {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(100%); opacity: 0; }
+        }
+
+        /* Mode toggle - now visible by default */
+        .mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            display: flex;
+            gap: 8px;
+        }
+
+        .mode-btn {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 24px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .mode-btn.active {
+            background: #1e3a8a;
+            color: white;
+            border-color: #1e3a8a;
+        }
+
+        .mode-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Language switcher button */
+        .lang-btn {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lang-btn:hover {
+            background: #e0e0e0;
+        }
+
+        /* Role Selection Overlay */
+        #role-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: calc(20px + env(safe-area-inset-top, 0px)) 20px
+                calc(20px + env(safe-area-inset-bottom, 0px));
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .role-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            padding: 28px 32px;
+            width: 100%;
+            max-width: 300px;
+            max-height: calc(100dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            text-align: center;
+        }
+
+        .role-card h2#welcome-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0 0 20px;
+        }
+
+        .role-lang-toggle {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .role-lang-toggle .lang-btn {
+            background: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 8px 24px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: #334155;
+            transition: all 0.2s ease;
+        }
+
+        .role-lang-toggle .lang-btn:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .role-lang-toggle .lang-btn.active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        #role-selection {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #role-selection .mode-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #c1440e, #8a2f06);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        #role-selection .mode-btn:hover {
+            background: linear-gradient(135deg, #d15517, #9a390c);
+            transform: translateY(-1px);
+        }
+
+        #role-selection .mode-btn.client {
+            background: linear-gradient(135deg, #1f9d8a, #0f7a6b);
+        }
+
+        #role-selection .mode-btn.client:hover {
+            background: linear-gradient(135deg, #2fae94, #108c5f);
+        }
+
+        /* Narrow phones: keep the nav controls from colliding and let the
+           title truncate instead of overflowing. */
+        @media (max-width: 420px) {
+            .app-title {
+                font-size: 14px;
+                max-width: 30vw;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .nav-duty-btn {
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+
+            .nav-full-btn {
+                padding: 8px 10px;
+                font-size: 11px;
+            }
+
+            .request-btn {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2 data-i18n="app.loading">Loading...</h2>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Map Controls -->
+    <div class="map-controls">
+        <button class="control-btn" id="center-btn" data-i18n-title="map.center" title="Center on my location">&#x26F6;</button>
+    </div>
+
+    <!-- Language/Role Selection Overlay (shown after loading) -->
+    <div id="role-overlay">
+        <div class="role-card">
+            <h2 id="welcome-title">Community Transit</h2>
+
+            <!-- Single language toggle: shows EN when in Spanish, ES when in English -->
+            <div class="role-lang-toggle">
+                <button class="lang-btn" id="lang-toggle">EN</button>
+            </div>
+
+            <!-- Role Selection (Client/Driver) -->
+            <div id="role-selection">
+                <button class="mode-btn client" id="client-mode-btn">📱 <span data-i18n="app.client_label">Client / Cliente</span></button>
+                <button class="mode-btn driver" id="driver-mode-btn">🛺 <span data-i18n="app.driver_label">Driver / Conductor</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Travel Features Toggle -->
+    <div class="travel-toggle" id="travel-toggle" style="display: none;">
+        <button class="travel-btn" id="hidden-gems-btn" data-i18n="travel.gems_btn" title="Hidden Gems">Gems</button>
+        <button class="travel-btn" id="attractions-btn" data-i18n="travel.attractions_btn" title="Attractions">Sites</button>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="status-indicator">
+                <div class="status-dot" id="connection-status"></div>
+            </div>
+            <span id="app-title" class="app-title">Yucatan</span>
+        </div>
+
+        <!-- Request ride / Cancel ride (customer), centered -->
+        <button id="request-btn" class="request-btn hidden" data-i18n="transit.request_ride">Pedir viaje</button>
+
+        <!-- On/off duty toggle (driver), centered in the nav bar -->
+        <!-- Full / available toggle (driver), beside the duty button -->
+        <!-- Both live in a centered flex group so they never collide with the
+             app title (left) or the gear button (right). -->
+        <div id="driver-controls" class="driver-controls hidden">
+            <button id="full-toggle" class="nav-full-btn hidden" data-i18n="transit.available">AVAILABLE</button>
+            <button id="duty-toggle" class="nav-duty-btn hidden" data-i18n="transit.off_duty">OFF DUTY</button>
+        </div>
+
+        <!-- App info / gear (top-right) -->
+        <button id="gear-btn" class="gear-btn" data-i18n-title="transit.gear" title="Info">&#9881;</button>
+        <div id="info-panel" class="info-panel hidden">
+            <h4 id="info-panel-title" data-i18n="transit.gear">Info</h4>
+            <!-- Route editor (driver): hidden unless logged in as driver -->
+            <div id="info-route-section" class="info-route-section hidden">
+                <label for="driver-route" data-i18n="transit.route_label">Tu ruta</label>
+                <input id="driver-route" placeholder="ej. Chelem a Progreso" data-i18n="transit.route_placeholder" />
+                <button id="route-save-btn" class="ride-btn primary" data-i18n="transit.save_route">Guardar ruta</button>
+            </div>
+            <a id="info-taco-link" class="info-taco-link" href="https://buymeacoffee.com/mr.c77" target="_blank" rel="noopener" data-i18n="transit.taco">Buy me a Taco 🌮</a>
+
+            <!-- How to add to Home Screen -->
+            <details id="info-home-screen" class="info-section">
+                <summary data-i18n="transit.home_screen_title">Add to Home Screen</summary>
+                <div class="info-section-body">
+                    <p class="info-subtitle" data-i18n="transit.home_screen_ios">How to add to your Home Screen on iPhone (iOS)</p>
+                    <p data-i18n="transit.home_screen_ios_body">iPhone (iOS) requires using Safari...</p>
+                    <p class="info-subtitle" data-i18n="transit.home_screen_android">How to add to your Home Screen on Android</p>
+                    <p data-i18n="transit.home_screen_android_body">Android supports adding websites...</p>
+                </div>
+            </details>
+
+            <!-- About the app -->
+            <details id="info-about" class="info-section">
+                <summary data-i18n="transit.about_title">About the app</summary>
+                <div class="info-section-body">
+                    <p data-i18n="transit.about_designer">Designed by Mr.C</p>
+                    <p data-i18n="transit.about_contact">For questions and suggestions contact us on WhatsApp</p>
+                    <a class="info-whatsapp-link" href="https://chat.whatsapp.com/LPmfPaRhsE224IFoIE29zi?s=hd&p=i&mlu=4&amv=2" target="_blank" rel="noopener">WhatsApp</a>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <!-- Driver auth (register: name + phone + invite code; auto-login after) -->
+    <div id="driver-auth-panel" class="ride-panel hidden">
+        <div class="ride-panel-inner">
+            <button id="driver-auth-close" class="ride-panel-close">×</button>
+            <h3 data-i18n="transit.driver_panel_title">Conductor</h3>
+            <div id="driver-register-form">
+                <input id="reg-name" placeholder="Nombre" data-i18n="transit.name" />
+                <input id="reg-phone" type="tel" inputmode="numeric" placeholder="Teléfono (10 dígitos)" data-i18n="transit.phone" />
+                <input id="reg-invite" placeholder="Código de invitación" data-i18n="transit.invite_code" />
+                <button id="driver-register-btn" class="ride-btn primary" data-i18n="transit.register_me">Registrarme</button>
+            </div>
+            <div id="driver-auth-error" class="ride-error"></div>
+        </div>
+    </div>
+
+    <!-- Request panel (customer) — clean dropdown anchored under the nav -->
+    <div id="request-panel" class="request-dropdown hidden">
+        <h3 data-i18n="transit.request_title">Pedir un viaje</h3>
+        <input id="req-name" placeholder="Tu nombre (opcional)" data-i18n="transit.your_name_optional" />
+        <div class="dest-section">
+            <label class="req-label" data-i18n="transit.destination_optional">Destino (opcional)</label>
+            <div class="dest-row">
+                <button id="req-dest-type" class="ride-btn ghost" data-i18n="transit.type_place">Escribir lugar</button>
+                <button id="req-dest-pin" class="ride-btn ghost" data-i18n="transit.pick_on_map">Elegir en el mapa</button>
+            </div>
+            <input id="req-dest" class="hidden" placeholder="Ej. Tienda" data-i18n="transit.dest_placeholder" />
+            <div id="req-dest-display" class="req-dest-display hidden"></div>
+        </div>
+        <div id="req-error" class="ride-error"></div>
+        <button id="req-submit" class="ride-btn primary" data-i18n="transit.ready">Ready</button>
+        <button id="req-close" class="ride-btn ghost" data-i18n="transit.cancel">Cancelar</button>
+    </div>
+
+    <!-- External Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Core Modules -->
+    <script src="/js/config.js?v=5"></script>
+    <script src="/js/i18n.js?v=6"></script>
+    <script src="/js/geolocation.js"></script>
+    <script src="/js/map.js?v=10"></script>
+    <script src="/js/realtime.js?v=7"></script>
+    <script src="/js/presence.js?v=1"></script>
+    <script src="/js/handoff.js"></script>
+    <script src="/js/welcome-banner.js"></script>
+    <script src="/js/travel-map.js"></script>
+    <script src="/js/hidden-gems.js"></script>
+    <script src="/js/ride.js?v=27"></script>
+
+    <!-- Main Application Script -->
+    <script>
+        // Global instances
+        let geoManager, mapManager, realtimeManager, handoffManager, welcomeBanner, travelMap, hiddenGems, rideApp;
+        let currentMode = 'passenger';
+        let townRecordId = null;
+        let locationPublishTimer = null;
+
+        // Single language toggle: shows the language you'll switch TO
+        // (EN when Spanish, ES when English). Updates label + language.
+        function renderLangToggle() {
+            const btn = document.getElementById('lang-toggle');
+            if (!btn) return;
+            const saved = localStorage.getItem('app_language');
+            const current = saved || (window.APP_CONFIG && window.APP_CONFIG.DEFAULT_LANGUAGE) || 'es';
+            const target = current === 'es' ? 'en' : 'es';
+            btn.textContent = target.toUpperCase();
+            btn.title = target === 'es' ? 'Español' : 'English';
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('lang-toggle');
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    if (!window.i18n) return;
+                    const saved = localStorage.getItem('app_language');
+                    const current = saved || (window.APP_CONFIG && window.APP_CONFIG.DEFAULT_LANGUAGE) || 'es';
+                    const target = current === 'es' ? 'en' : 'es';
+                    window.i18n.switchLanguage(target).then(() => renderLangToggle());
+                });
+            }
+        });
+
+        // Initialize application
+        async function initApp() {
+            try {
+                // 1. Wait for runtime config (/config.json)
+                if (window.RTM_CONFIG_READY) {
+                    await window.RTM_CONFIG_READY;
+                }
+
+                // 2. Initialize i18n (idempotent)
+                if (window.i18n) {
+                    await window.i18n.init(APP_CONFIG.DEFAULT_LANGUAGE);
+                    document.documentElement.lang = APP_CONFIG.DEFAULT_LANGUAGE;
+                    document.title = window.i18n.t('app.title');
+                }
+
+                // Show language/role selection overlay for transit apps
+                if (APP_CONFIG.APP_TYPE === 'transit') {
+                    const roleOverlay = document.getElementById('role-overlay');
+                    if (roleOverlay) {
+                        roleOverlay.style.display = 'flex';
+                    }
+                }
+
+                // Initialize the single language toggle label once config is ready
+                renderLangToggle();
+
+                // Set role based on button click
+                document.getElementById('client-mode-btn').addEventListener('click', () => {
+                    if (rideApp) rideApp.chooseRole('customer');
+                    setRole('customer');
+                });
+                document.getElementById('driver-mode-btn').addEventListener('click', () => {
+                    if (rideApp) rideApp.chooseRole('driver');
+                    setRole('driver');
+                });
+
+                function setRole(role) {
+                    // Hide role overlay and show main UI
+                    const roleOverlay = document.getElementById('role-overlay');
+                    if (roleOverlay) roleOverlay.style.display = 'none';
+                }
+
+                // 3. Initialize core modules
+                geoManager = new GeolocationManager({
+                    updateInterval: APP_CONFIG.GPS_UPDATE_INTERVAL || 5000
+                });
+
+                mapManager = new UniversalMap({
+                    containerId: 'map',
+                    initialLat: APP_CONFIG.INITIAL_LATITUDE,
+                    initialLng: APP_CONFIG.INITIAL_LONGITUDE,
+                    zoomLevel: APP_CONFIG.MAP_ZOOM_LEVEL,
+                    maxBounds: APP_CONFIG.MAX_BOUNDS,
+                    tileProvider: APP_CONFIG.MAP_TILE_PROVIDER || 'cartodb_voyager',
+                    appType: APP_CONFIG.APP_TYPE
+                });
+
+                realtimeManager = new RealtimeManager({
+                    pocketbaseUrl: APP_CONFIG.POCKETBASE_URL || ''
+                });
+
+                // 4. Initialize map
+                mapManager.init();
+
+                // 5. Initialize geolocation (non-fatal if denied)
+                try {
+                    await geoManager.init();
+                } catch (err) {
+                    console.warn('Geolocation unavailable:', err);
+                }
+
+                // 6. Initialize realtime connection
+                await realtimeManager.init();
+
+                // 6.5 Ride apps (transit): initialize ride app for role-based mode toggle
+                // No role selection gate - user picks role via mode toggle
+                if (APP_CONFIG.APP_TYPE === 'transit' && window.RideApp) {
+                    rideApp = new RideApp({
+                        config: APP_CONFIG,
+                        geo: geoManager,
+                        map: mapManager,
+                        rt: realtimeManager
+                    });
+                    // Don't wait for start() which gates on role selection
+                    // rideApp.start();
+                }
+
+                // 7. Initialize welcome banner
+                if (APP_CONFIG.APP_TYPE !== 'transit') {
+                    welcomeBanner = new WelcomeBanner();
+                    welcomeBanner.init();
+                }
+
+                // 8. Initialize hand-off manager if enabled
+                if (APP_CONFIG.ENABLE_CROSS_COUNTRY_HANDOFF) {
+                    handoffManager = new HandoffManager({
+                        centralRegistryUrl: APP_CONFIG.CENTRAL_REGISTRY_URL,
+                        geolocationManager: geoManager,
+                        realtimeManager: realtimeManager,
+                        mapManager: mapManager,
+                        welcomeBanner: welcomeBanner,
+                        config: APP_CONFIG
+                    });
+                    await handoffManager.init();
+                }
+
+                // 9. Initialize travel map features if enabled
+                if (APP_CONFIG.APP_TYPE === 'travel' || APP_CONFIG.ENABLE_PROXIMITY_ALERTS) {
+                    travelMap = new TravelMapModule({
+                        map: mapManager,
+                        geolocationManager: geoManager,
+                        config: APP_CONFIG
+                    });
+                    await travelMap.init();
+                }
+
+                // 10. Initialize hidden gems if enabled
+                if (APP_CONFIG.ENABLE_HIDDEN_GEMS) {
+                    hiddenGems = new HiddenGemsManager({
+                        map: mapManager,
+                        realtimeManager: realtimeManager,
+                        geolocationManager: geoManager,
+                        config: APP_CONFIG
+                    });
+                    await hiddenGems.init();
+                }
+
+                // 11. Show travel toggle buttons when relevant
+                if (APP_CONFIG.APP_TYPE === 'travel') {
+                    document.getElementById('travel-toggle').style.display = 'flex';
+                }
+
+                // 12. Setup realtime subscriptions
+                await setupRealtimeSubscriptions();
+
+                // 13. Setup event listeners
+                setupEventListeners();
+                setupInfoPanel();
+
+                // 14. Update user location on map
+                geoManager.onPositionUpdate((position) => {
+                    mapManager.updateUserLocation(position.latitude, position.longitude);
+                    if (rideApp) rideApp.onPositionUpdate(position);
+                });
+
+                // 15. Hide loading overlay
+                document.getElementById('loading-overlay').classList.add('hidden');
+
+                // 16. Update status display
+                updateStatusDisplay();
+
+                console.log('Application initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize application:', error);
+                showError('Failed to initialize application. Please refresh the page.');
+            }
+        }
+
+        // Helper: resolve the town record id for this deployment
+        async function resolveTownRecord() {
+            if (townRecordId) return townRecordId;
+            const pb = realtimeManager.getPocketBase();
+            const townId = APP_CONFIG.TOWN_ID;
+            const record = await pb.collection('towns').getFirstListItem(`town_id = "${townId}"`);
+            townRecordId = record.id;
+            return townRecordId;
+        }
+
+        // Setup realtime subscriptions
+        async function setupRealtimeSubscriptions() {
+            if (!realtimeManager.isConnected()) return;
+
+            // Scope subscriptions to this town
+            const options = { filter: `town.town_id = "${APP_CONFIG.TOWN_ID}"` };
+
+            // Transit apps are handled entirely by RideApp (drivers + requests)
+            switch (APP_CONFIG.APP_TYPE) {
+                case 'transit':
+                    break;
+                case 'fishing':
+                    await realtimeManager.subscribe('vessels', handleVesselUpdate, options);
+                    break;
+                case 'travel':
+                    await realtimeManager.subscribe('hidden_gems', (event) => {
+                        // Hidden gems handled by HiddenGemsManager
+                    }, options);
+                    break;
+            }
+        }
+
+        // Handle driver position updates
+        function handleDriverUpdate(event) {
+            const { action, record } = event;
+
+            if (action === 'create' || action === 'update') {
+                if (APP_CONFIG.APP_TYPE === 'transit' && APP_CONFIG.TRANSIT_VEHICLE_TYPES) {
+                    const allowed = String(APP_CONFIG.TRANSIT_VEHICLE_TYPES).split(',').map(s => s.trim());
+                    if (!allowed.includes(record.vehicle_type)) return;
+                }
+                if (record.status === 'available') {
+                    mapManager.updateMarker(
+                        record.id,
+                        record.latitude,
+                        record.longitude,
+                        {
+                            appType: 'transit',
+                            entityType: record.vehicle_type,
+                            popupContent: `
+                                <div class="driver-popup">
+                                    <h3>${(record.vehicle_type || 'mototaxi').toUpperCase()}</h3>
+                                    <p>Plate: ${record.license_plate}</p>
+                                    <p>Status: ${record.status}</p>
+                                    ${record.rating ? `<p>Rating: ${record.rating}</p>` : ''}
+                                </div>
+                            `
+                        }
+                    );
+                } else {
+                    mapManager.removeMarker(record.id);
+                }
+            } else if (action === 'delete') {
+                mapManager.removeMarker(record.id);
+            }
+        }
+
+        // Handle vessel position updates
+        function handleVesselUpdate(event) {
+            const { action, record } = event;
+
+            if (action === 'create' || action === 'update') {
+                if (record.status !== 'docked') {
+                    mapManager.updateMarker(
+                        record.id,
+                        record.latitude,
+                        record.longitude,
+                        {
+                            appType: 'fishing',
+                            entityType: record.vessel_type,
+                            popupContent: `
+                                <div class="vessel-popup">
+                                    <h3>${record.vessel_name}</h3>
+                                    <p>Type: ${record.vessel_type}</p>
+                                    <p>Status: ${record.status}</p>
+                                    ${record.crew_size ? `<p>Crew: ${record.crew_size}</p>` : ''}
+                                </div>
+                            `
+                        }
+                    );
+                } else {
+                    mapManager.removeMarker(record.id);
+                }
+            } else if (action === 'delete') {
+                mapManager.removeMarker(record.id);
+            }
+        }
+
+        // Publish this device's location as a driver/vessel record
+        async function publishLocation() {
+            const position = geoManager.getPosition();
+            if (!position || !realtimeManager.isConnected()) return;
+
+            try {
+                const pb = realtimeManager.getPocketBase();
+                const town = await resolveTownRecord();
+                const deviceKey = `rtm_${APP_CONFIG.APP_TYPE}_record_id`;
+                const recordId = localStorage.getItem(deviceKey);
+
+                if (APP_CONFIG.APP_TYPE === 'transit') {
+                    const data = {
+                        town: town,
+                        name: 'Conductor demo',
+                        vehicle_type: (APP_CONFIG.TRANSIT_VEHICLE_TYPES || 'mototaxi,bus').split(',')[0],
+                        license_plate: 'PLACA-DEMO',
+                        latitude: position.latitude,
+                        longitude: position.longitude,
+                        status: 'available'
+                    };
+                    if (recordId) {
+                        await pb.collection('drivers').update(recordId, { latitude: data.latitude, longitude: data.longitude, status: 'available' });
+                    } else {
+                        const record = await pb.collection('drivers').create(data);
+                        localStorage.setItem(deviceKey, record.id);
+                    }
+                } else if (APP_CONFIG.APP_TYPE === 'fishing') {
+                    const data = {
+                        town: town,
+                        vessel_name: 'Panga demo',
+                        vessel_type: (APP_CONFIG.FISHING_VESSEL_TYPES || 'panga,boat,yacht').split(',')[0],
+                        registration_number: 'REG-DEMO',
+                        latitude: position.latitude,
+                        longitude: position.longitude,
+                        status: 'fishing'
+                    };
+                    if (recordId) {
+                        await pb.collection('vessels').update(recordId, { latitude: data.latitude, longitude: data.longitude, status: 'fishing' });
+                    } else {
+                        const record = await pb.collection('vessels').create(data);
+                        localStorage.setItem(deviceKey, record.id);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to publish location:', error);
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Map controls
+            document.getElementById('center-btn').addEventListener('click', () => {
+                const position = geoManager.getPosition();
+                if (position) {
+                    mapManager.setView(position.latitude, position.longitude);
+                }
+            });
+
+            // Role is chosen once on the welcome overlay; rideApp.chooseRole
+            // handles the customer/driver flow from there. No in-app mode toggle.
+
+            // Travel toggle buttons
+            const hiddenGemsBtn = document.getElementById('hidden-gems-btn');
+            if (hiddenGemsBtn) {
+                hiddenGemsBtn.addEventListener('click', () => {
+                    hiddenGemsBtn.classList.toggle('active');
+                });
+            }
+
+            const attractionsBtn = document.getElementById('attractions-btn');
+            if (attractionsBtn) {
+                attractionsBtn.addEventListener('click', () => {
+                    if (travelMap) {
+                        attractionsBtn.classList.toggle('active');
+                    }
+                });
+            }
+
+            // Connection status
+            realtimeManager.onConnect(() => {
+                updateConnectionStatus(true);
+            });
+
+            realtimeManager.onDisconnect(() => {
+                updateConnectionStatus(false);
+            });
+
+            // Re-apply titles when language changes
+            document.addEventListener('languageChanged', () => {
+                document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                    const key = el.getAttribute('data-i18n-title');
+                    if (window.i18n) el.title = window.i18n.t(key);
+                });
+            });
+        }
+
+        // Set application mode
+        function setMode(mode) {
+            if (APP_CONFIG.APP_TYPE === 'transit') return; // RideApp manages roles
+            currentMode = mode;
+
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`${mode}-mode`).classList.add('active');
+
+            if (mode === 'driver') {
+                enableDriverMode();
+            } else {
+                enablePassengerMode();
+            }
+        }
+
+        // Enable driver mode
+        function enableDriverMode() {
+            if (geoManager && !geoManager.isTracking()) {
+                geoManager.startWatching();
+            }
+
+            // Publish location on a fixed interval
+            if (!locationPublishTimer) {
+                publishLocation();
+                locationPublishTimer = setInterval(publishLocation, APP_CONFIG.GPS_UPDATE_INTERVAL || 5000);
+            }
+        }
+
+        // Enable passenger mode
+        function enablePassengerMode() {
+            if (locationPublishTimer) {
+                clearInterval(locationPublishTimer);
+                locationPublishTimer = null;
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('connection-status');
+            if (connected) {
+                statusDot.classList.remove('disconnected');
+            } else {
+                statusDot.classList.add('disconnected');
+            }
+        }
+
+        // Update status display
+        function updateStatusDisplay() {
+            const titleEl = document.getElementById('app-title');
+            if (titleEl) {
+                // Show just the state, e.g. "Chelem-Chuburna-Progreso, Yucatan" -> "Yucatan"
+                const full = APP_CONFIG.TOWN_NAME || 'Yucatan';
+                const parts = full.split(',').map((s) => s.trim()).filter(Boolean);
+                titleEl.textContent = parts.length > 1 ? parts[parts.length - 1] : full;
+            }
+            updateConnectionStatus(realtimeManager.isConnected());
+        }
+
+        // App info / gear panel toggle
+        function setupInfoPanel() {
+            const gear = document.getElementById('gear-btn');
+            const panel = document.getElementById('info-panel');
+            if (!gear || !panel) return;
+            gear.addEventListener('click', () => {
+                panel.classList.toggle('hidden');
+            });
+            document.addEventListener('click', (e) => {
+                if (!panel.contains(e.target) && !gear.contains(e.target)) {
+                    panel.classList.add('hidden');
+                }
+            });
+        }
+
+        // Show error message
+        function showError(message) {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.querySelector('h2').textContent = message;
+            loadingOverlay.querySelector('.loading-spinner').style.display = 'none';
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Driver Password Reset — Admin</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:960px;margin:24px auto;padding:0 12px;color:#111}
+h1{font-size:20px;margin:6px 0}
+.token-box{margin:12px 0}
+.token-box input{width:100%;padding:10px;font-size:14px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box}
+button{background:#1e3a8a;color:#fff;border:0;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+button:hover{background:#1c3570}
+table{border-collapse:collapse;width:100%;margin-top:14px;font-size:13px}
+th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 6px;border-radius:4px;word-break:break-all}
+#status{margin-left:10px;color:#555}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center}
+.modal .card{background:#fff;padding:22px;border-radius:10px;max-width:460px;width:90%;box-shadow:0 5px 20px rgba(0,0,0,.3)}
+</style>
+</head>
+<body>
+<h1>Driver password reset</h1>
+<p>Enter the admin reset token, then click "Load drivers". The token is saved in this browser tab only (sessionStorage).</p>
+<div class="token-box"><input id="tok" type="password" placeholder="ADMIN_RESET_TOKEN" autocomplete="off"></div>
+<button id="loadBtn">Load drivers</button>
+<button onclick="sortBy('duty_count')" style="background:#555">Sort: days</button>
+<button onclick="sortBy('referral_count')" style="background:#555">Sort: invites</button>
+<span id="status"></span>
+<div id="list"></div>
+
+<div class="modal" id="modal">
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 10px">New password generated</h2>
+    <p style="margin:8px 0">Give this to the driver. They can sign in with their email or phone.</p>
+    <p><code id="pw"></code></p>
+    <p style="margin:0;text-align:right"><button id="closeBtn">Close</button></p>
+  </div>
+</div>
+
+<script>
+const API='/api/rtm/';
+const $s=document.getElementById('status');
+const status=(m)=>{$s.textContent=m; $s.style.color=m.startsWith('✓')?'#070':m.startsWith('✗')?'#c00':'#555'};
+const token=()=>sessionStorage.getItem('admin_token')||'';
+const hdrs=()=>{const h={'Content-Type':'application/json'}; if(token()) h['x-admin-token']=token(); return h};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m])}
+
+document.getElementById('loadBtn').onclick=async()=>{
+  const t=(document.getElementById('tok').value||'').trim();
+  if(t) sessionStorage.setItem('admin_token',t);
+  if(!token()){status('✗ enter token first');return}
+  status('loading…');
+  try{
+    const r=await fetch(API+'admin-list-drivers',{headers:hdrs()});
+    if(r.status===403){status('✗ wrong token');return}
+    if(!r.ok){status('✗ '+r.status);return}
+    const j=await r.json(); lastDrivers=j.drivers; render(lastDrivers); status('✓ '+j.drivers.length+' drivers')
+  }catch(e){status('✗ '+e.message)}
+};
+
+let lastDrivers=[];
+window.sortBy=function(key){
+  if(!lastDrivers.length)return;
+  lastDrivers=[...lastDrivers].sort((a,b)=>((b[key]||0)-(a[key]||0)));
+  render(lastDrivers);
+};
+
+function render(drivers){
+  const list=document.getElementById('list');
+  if(!drivers||!drivers.length){list.innerHTML='<p>No drivers found.</p>';return}
+  const fmt=(ms)=>ms?new Date(ms).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):'—';
+  const fmtAgo=(ms)=>{
+    if(!ms)return '—';
+    const m=Math.round((Date.now()-ms)/60000);
+    if(m<60)return m+' min';
+    if(m<1440)return Math.round(m/60)+' h';
+    return Math.round(m/1440)+' d';
+  };
+  let h='<table><tr><th>Driver ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Vehicle</th><th>Status</th>'+
+        '<th>Days active</th><th>Last hit</th><th>Code</th><th>Invites</th><th>Shares</th><th>Last seen</th><th>Reset</th></tr>';
+  for(const d of drivers){
+    h+='<tr><td>'+esc(d.id)+'</td><td>'+esc(d.name)+'</td><td>'+esc(d.email)+'</td><td>'+esc(d.phone)+
+      '</td><td>'+esc(d.vehicle_type)+' '+(d.on_duty?'🟢':'⚪')+'</td><td>'+esc(d.status)+
+      '</td><td style="text-align:center"><b>'+(d.duty_count||0)+'</b></td>'+
+      '<td>'+fmt(d.last_hit_at)+'</td>'+
+      '<td><code>'+esc(d.referral_code||'')+'</code></td>'+
+      '<td style="text-align:center">'+(d.referral_count||0)+'</td>'+
+      '<td style="text-align:center">'+(d.share_count||0)+'</td>'+
+      '<td>'+fmtAgo(d.last_active)+'</td>'+
+      '<td><button onclick="reset('+JSON.stringify(d.id)+')">Reset</button></td></tr>';
+  }
+  h+='</table>'; list.innerHTML=h;
+}
+
+window.reset=async function(id){
+  if(!token()){status('✗ enter token first');return}
+  if(!confirm('Reset password for driver '+id+'? A new password will be generated.')) return;
+  status('resetting…');
+  try{
+    const r=await fetch(API+'admin-reset-password',{method:'POST',headers:hdrs(),body:JSON.stringify({driver_id:id})});
+    if(r.status===403){status('✗ wrong token');return}
+    if(!r.ok){status('✗ '+r.status);return}
+    const j=await r.json();
+    document.getElementById('pw').textContent=j.password;
+    document.getElementById('modal').style.display='flex';
+    status('✓ password reset for '+esc(j.email))
+  }catch(e){status('✗ '+e.message)}
+};
+
+document.getElementById('closeBtn').onclick=()=>{document.getElementById('modal').style.display='none'};
+</script>
+</body>
+</html>

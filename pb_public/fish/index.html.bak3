@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yucatán Fishing</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="fish.css?v=2" />
+</head>
+<body>
+  <header class="fish-header">
+    <h1>Yucatán Fishing</h1>
+    <div class="header-actions">
+      <button id="btn-settings" class="icon-btn" aria-label="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <main class="fish-main">
+    <!-- COMMUNITY -->
+    <section id="tab-community" class="tab-panel">
+      <div class="subtabs">
+        <button class="subtab-btn active" data-subtab="all">All</button>
+        <button class="subtab-btn" data-subtab="mine">Mine</button>
+        <button class="subtab-btn" data-subtab="recipes">Recipes</button>
+      </div>
+      <div class="feed empty-state">
+        <p>No posts yet — share your first catch!</p>
+      </div>
+    </section>
+
+    <!-- GUIDE -->
+    <section id="tab-guide" class="tab-panel">
+      <h2 class="section-title">Fish Guide</h2>
+      <div class="fish-grid">
+        <div class="fish-card" data-fish="snook"><div class="fish-img">🐟</div><div class="fish-name">Snook (Robalo)</div></div>
+        <div class="fish-card" data-fish="tarpon"><div class="fish-img">🐟</div><div class="fish-name">Tarpon (Sábalo)</div></div>
+        <div class="fish-card" data-fish="bonefish"><div class="fish-img">🐟</div><div class="fish-name">Bonefish (Macabí)</div></div>
+        <div class="fish-card" data-fish="groupers"><div class="fish-img">🐟</div><div class="fish-name">Grouper (Mero)</div></div>
+        <div class="fish-card" data-fish="king"><div class="fish-img">🐟</div><div class="fish-name">King Mackerel (Carito)</div></div>
+        <div class="fish-card" data-fish="catfish"><div class="fish-img">🐟</div><div class="fish-name">Cenote Catfish (Boox)</div></div>
+      </div>
+    </section>
+
+    <!-- SPOTS — full-screen map (default tab) -->
+    <section id="tab-spots" class="tab-panel active">
+      <div id="spots-map" class="map-full"></div>
+      <div class="map-overlay">
+        <div class="spots-legend">
+          <span class="badge">🎯 Your spot</span>
+          <span class="badge">🐠 Rocky reef</span>
+          <span class="badge">🚫 No-fishing zone</span>
+        </div>
+        <button id="btn-add-spot" class="fab primary" aria-label="Add spot">📍</button>
+      </div>
+    </section>
+
+    <!-- SHOPS — full-screen on-land map -->
+    <section id="tab-shops" class="tab-panel">
+      <div id="shops-map" class="map-full"></div>
+      <div class="map-overlay">
+        <div class="chips">
+          <button class="chip active">All</button>
+          <button class="chip">Boat accessories</button>
+          <button class="chip">Bait shops</button>
+          <button class="chip">Tours</button>
+          <button class="chip">Rentals</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RULES -->
+    <section id="tab-rules" class="tab-panel">
+      <h2 class="section-title">Rules &amp; Licenses</h2>
+      <ul class="rules-list">
+        <li>Refuge zones (Telchac, Chuburná) — no recreational fishing.</li>
+        <li>Scorpion Atoll — permit required for anchoring / bottom fishing.</li>
+      </ul>
+      <button class="report-btn">🚩 Report an issue / blocked vendor</button>
+    </section>
+  </main>
+
+  <nav class="fish-bottom-nav" role="tablist">
+    <button class="nav-item" data-tab="community">
+      <span class="nav-icon">👥</span><span class="nav-label">Community</span>
+    </button>
+    <button class="nav-item" data-tab="guide">
+      <span class="nav-icon">🐟</span><span class="nav-label">Guide</span>
+    </button>
+    <button class="nav-item active" data-tab="spots">
+      <span class="nav-icon">📍</span><span class="nav-label">Spots</span>
+    </button>
+    <button class="nav-item" data-tab="shops">
+      <span class="nav-icon">🏪</span><span class="nav-label">Shops</span>
+    </button>
+    <button class="nav-item" data-tab="rules">
+      <span class="nav-icon">📜</span><span class="nav-label">Rules</span>
+    </button>
+  </nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="fish.js?v=2"></script>
+</body>
+</html>

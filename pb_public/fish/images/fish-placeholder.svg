@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="120" height="120">
+  <ellipse cx="32" cy="32" rx="26" ry="14" transform="rotate(-20 32 32)" fill="#cbd5e1"/>
+  <path d="M20 28 C24 24, 28 22, 32 22 C36 22, 40 24, 44 28 C40 30, 36 34, 32 36 C28 34, 24 30, 20 28 Z" fill="#94a3b8"/>
+  <path d="M44 28 C48 30, 50 33, 48 36 C46 39, 40 40, 36 38 C38 42, 34 44, 30 42 C34 40, 38 38, 40 34" fill="#94a3b8"/>
+  <polygon points="48,26 58,32 48,38" fill="#94a3b8"/>
+  <circle cx="18" cy="33" r="3.5" fill="#475569"/>
+</svg>

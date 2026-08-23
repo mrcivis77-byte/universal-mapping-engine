@@ -1,0 +1,115 @@
+{
+  "comment": "Reference schema for the RTM collections (PocketBase 0.23+ fields format). The live collections are created by scripts/setup-pocketbase.mjs; this file documents the expected shape for the central hub and other tooling.",
+  "collections": {
+    "towns": {
+      "type": "base",
+      "fields": [
+        { "name": "town_id", "type": "text", "required": true },
+        { "name": "town_name", "type": "text", "required": true },
+        { "name": "latitude", "type": "number", "required": true },
+        { "name": "longitude", "type": "number", "required": true },
+        { "name": "max_bounds", "type": "text" },
+        { "name": "welcome_message", "type": "text" },
+        { "name": "app_type", "type": "select", "options": { "values": ["transit", "fishing", "travel"] }, "required": true },
+        { "name": "tunnel_url", "type": "url" },
+        { "name": "settings", "type": "json" }
+      ]
+    },
+    "users": {
+      "type": "auth",
+      "fields": [
+        { "name": "name", "type": "text", "required": true },
+        { "name": "role", "type": "select", "options": { "values": ["passenger", "driver", "admin"] }, "required": true },
+        { "name": "phone", "type": "text" },
+        { "name": "preferred_language", "type": "select", "options": { "values": ["es", "en", "maya"] } },
+        { "name": "avatar", "type": "file" }
+      ]
+    },
+    "drivers": {
+      "type": "base",
+      "fields": [
+        { "name": "town", "type": "relation", "collection": "towns", "required": true },
+        { "name": "user", "type": "relation", "collection": "users" },
+        { "name": "name", "type": "text" },
+        { "name": "vehicle_type", "type": "select", "options": { "values": ["mototaxi", "bus"] }, "required": true },
+        { "name": "license_plate", "type": "text", "required": true },
+        { "name": "latitude", "type": "number", "required": true },
+        { "name": "longitude", "type": "number", "required": true },
+        { "name": "heading", "type": "number" },
+        { "name": "speed", "type": "number" },
+        { "name": "status", "type": "select", "options": { "values": ["available", "busy", "offline"] }, "required": true },
+        { "name": "on_duty", "type": "bool" },
+        { "name": "route", "type": "text" },
+        { "name": "rating", "type": "number" }
+      ]
+    },
+    "ride_requests": {
+      "type": "base",
+      "fields": [
+        { "name": "town", "type": "relation", "collection": "towns", "required": true },
+        { "name": "customer_name", "type": "text", "required": true },
+        { "name": "customer_lat", "type": "number", "required": true },
+        { "name": "customer_lng", "type": "number", "required": true },
+        { "name": "dest_lat", "type": "number" },
+        { "name": "dest_lng", "type": "number" },
+        { "name": "destination", "type": "text" },
+        { "name": "status", "type": "select", "options": { "values": ["pending", "completed", "cancelled"] }, "required": true }
+      ]
+    },
+    "vessels": {
+      "type": "base",
+      "fields": [
+        { "name": "town", "type": "relation", "collection": "towns", "required": true },
+        { "name": "vessel_name", "type": "text", "required": true },
+        { "name": "vessel_type", "type": "select", "options": { "values": ["panga", "boat", "yacht"] }, "required": true },
+        { "name": "registration_number", "type": "text", "required": true },
+        { "name": "latitude", "type": "number", "required": true },
+        { "name": "longitude", "type": "number", "required": true },
+        { "name": "heading", "type": "number" },
+        { "name": "speed", "type": "number" },
+        { "name": "status", "type": "select", "options": { "values": ["fishing", "returning", "docked", "emergency"] }, "required": true },
+        { "name": "crew_size", "type": "number" }
+      ]
+    },
+    "hidden_gems": {
+      "type": "base",
+      "fields": [
+        { "name": "town", "type": "relation", "collection": "towns", "required": true },
+        { "name": "driver", "type": "relation", "collection": "drivers" },
+        { "name": "vessel", "type": "relation", "collection": "vessels" },
+        { "name": "title", "type": "text", "required": true },
+        { "name": "description", "type": "text", "required": true },
+        { "name": "latitude", "type": "number", "required": true },
+        { "name": "longitude", "type": "number", "required": true },
+        { "name": "image", "type": "file" },
+        { "name": "rarity", "type": "select", "options": { "values": ["common", "rare", "legendary"] }, "required": true },
+        { "name": "category", "type": "select", "options": { "values": ["food", "nature", "culture", "adventure", "relaxation"] } }
+      ]
+    },
+    "attractions": {
+      "type": "base",
+      "fields": [
+        { "name": "town", "type": "relation", "collection": "towns", "required": true },
+        { "name": "hidden_gem", "type": "relation", "collection": "hidden_gems" },
+        { "name": "name", "type": "text", "required": true },
+        { "name": "type", "type": "select", "options": { "values": ["olmec", "pyramid", "cenote", "church", "museum", "park", "monument"] }, "required": true },
+        { "name": "icon", "type": "text" },
+        { "name": "latitude", "type": "number", "required": true },
+        { "name": "longitude", "type": "number", "required": true },
+        { "name": "description", "type": "text" },
+        { "name": "proximity_radius", "type": "number" }
+      ]
+    },
+    "network_stats": {
+      "type": "base",
+      "fields": [
+        { "name": "town", "type": "relation", "collection": "towns", "required": true },
+        { "name": "active_drivers", "type": "number" },
+        { "name": "active_vessels", "type": "number" },
+        { "name": "hidden_gems_count", "type": "number" },
+        { "name": "total_users", "type": "number" },
+        { "name": "system_info", "type": "json" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Yucatán en Vivo · Pesca",
+  "short_name": "Pesca",
+  "description": "Embarcaciones de pesca y zonas en tiempo real · Merida, Yucatan",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    {
+      "src": "/images/fishing-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/fishing-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

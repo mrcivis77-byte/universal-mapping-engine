@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor · Yucatán en Vivo</title>
+    <link rel="icon" type="image/png" href="/images/favicon-32x32.png?v=4" sizes="32x32" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/css/map.css?v=17" />
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, -apple-system, sans-serif; }
+        #map { position: absolute; inset: 0; background: #0f172a; }
+        .mon-top {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: rgba(15, 23, 42, 0.85); color: #e2e8f0;
+            padding: 8px 16px; border-radius: 12px; font-size: 14px; font-weight: 600;
+            backdrop-filter: blur(6px); white-space: nowrap;
+        }
+        .mon-top small { font-weight: 400; opacity: 0.75; margin-left: 8px; }
+        .mon-legend {
+            position: absolute; top: 10px; left: 10px; z-index: 1000;
+            background: rgba(15, 23, 42, 0.85); color: #e2e8f0; padding: 10px 14px;
+            border-radius: 12px; font-size: 13px; backdrop-filter: blur(6px);
+            line-height: 1.7;
+        }
+        .mon-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
+        .mon-cnt { float: right; margin-left: 14px; font-variant-numeric: tabular-nums; opacity: 0.9; }
+        .mon-legend b { display: block; margin-bottom: 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.6; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="mon-top">🗺️ Monitor en vivo<small id="mon-clock"></small></div>
+    <div class="mon-legend" id="mon-legend"><b>Servicios</b></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+    (function () {
+        'use strict';
+
+        // Per-service color: drivers AND their waiting customers share it.
+        const SERVICES = [
+            { type: 'bus',      label: 'Bus',       emoji: '🚐', color: '#eab308' },
+            { type: 'mototaxi', label: 'Mototaxi',  emoji: '🛺', color: '#f97316' },
+            { type: 'drive',    label: 'Drive',     emoji: '🚗', color: '#3b82f6' },
+            { type: 'austed',   label: 'A-Usted',   emoji: '🏍️', color: '#a855f7' }
+        ];
+        const BY_TYPE = Object.fromEntries(SERVICES.map((s) => [s.type, s]));
+
+        const PB = window.location.origin.replace(/\/+$/, '');
+        const POLL_MS = 5000;
+        const DRIVER_STALE_MS = 240 * 60 * 1000;          // ignore silent drivers
+        const REQUEST_MAX_AGE_MS = 240 * 60 * 1000;  // matches server expiry
+
+        const map = L.map('map', { zoomControl: true }).setView([20.95, -89.2], 8);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        const markers = {};   // key -> L.Marker
+        const meta = {};      // key -> { type, kind: 'drv'|'req' }
+
+        function svc(type) { return BY_TYPE[type] || { label: type, emoji: '❓', color: '#94a3b8' }; }
+
+        function disc(entity, s, sizePx, ring) {
+            // entity: emoji or text glyph shown inside the colored disc
+            return L.divIcon({
+                className: 'transit-emoji-marker',
+                html: `<span class="transit-emoji-disc" style="background:${ring ? '#ffffff' : s.color};color:#0f172a;width:${sizePx}px;height:${sizePx}px;line-height:1;font-size:${Math.round(sizePx * 0.55)}px;border-width:2px;border-color:${s.color}">${entity}</span>`,
+                iconSize: [sizePx, sizePx],
+                iconAnchor: [sizePx / 2, sizePx / 2],
+                popupAnchor: [0, -sizePx / 2]
+            });
+        }
+
+        function setMarker(key, latlng, icon, popup) {
+            if (markers[key]) {
+                markers[key].setLatLng(latlng);
+                markers[key].setIcon(icon);
+                if (popup !== undefined) markers[key].bindPopup(popup);
+            } else {
+                markers[key] = L.marker(latlng, { icon }).addTo(map);
+                if (popup) markers[key].bindPopup(popup);
+            }
+        }
+
+        function dropMarker(key) {
+            if (markers[key]) { markers[key].remove(); delete markers[key]; }
+        }
+
+        async function getJSON(url) {
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`${res.status} ${url}`);
+            return res.json();
+        }
+
+        async function refresh() {
+            const now = Date.now();
+            // last_active is epoch milliseconds - compare numerically.
+            const driverCutoff = now - DRIVER_STALE_MS;
+            const reqCutoff = new Date(now - REQUEST_MAX_AGE_MS).toISOString().replace('T', ' ').slice(0, 19);
+            const seen = new Set();
+
+            try {
+                const drv = await getJSON(`${PB}/api/collections/drivers/records?perPage=300&sort=-last_active&filter=${encodeURIComponent(`on_duty = true && last_active > ${driverCutoff}`)}`);
+                for (const d of drv.items || []) {
+                    if (!d.latitude || !d.longitude) continue;
+                    const s = svc(d.vehicle_type);
+                    const key = 'drv_' + d.id;
+                    seen.add(key);
+                    meta[key] = { type: d.vehicle_type || '', kind: 'drv' };
+                    const full = d.is_full === true;
+                    const agoSec = Math.max(0, Math.round((now - Number(d.last_active || 0)) / 1000));
+                    const seenTxt = agoSec < 60 ? `${agoSec}s` : `${Math.round(agoSec / 60)} min`;
+                    setMarker(key, [d.latitude, d.longitude], disc(s.emoji, s, 34),
+                        `<div class="driver-popup"><h3>${(d.vehicle_type || '').toUpperCase()}${full ? ' · FULL' : ''}</h3><p>${d.name || ''}</p>${d.route ? `<p>${d.route}</p>` : ''}<p>📍 visto hace ${seenTxt}</p></div>`);
+                }
+            } catch (err) { console.warn('drivers:', err.message); }
+
+            try {
+                const req = await getJSON(`${PB}/api/collections/ride_requests/records?perPage=300&filter=${encodeURIComponent(`status = "pending" && updated > "${reqCutoff}"`)}`);
+                for (const r of req.items || []) {
+                    if (!r.customer_lat || !r.customer_lng) continue;
+                    const s = svc(r.vehicle_type);
+                    const key = 'req_' + r.id;
+                    seen.add(key);
+                    meta[key] = { type: r.vehicle_type || '', kind: 'req' };
+                    const mins = Math.max(0, Math.round((now - new Date(r.created).getTime()) / 60000));
+                    setMarker(key, [r.customer_lat, r.customer_lng], disc('👤', s, 26, false),
+                        `<div class="driver-popup"><h3>${s.label} · cliente</h3><p>Esperando ${mins} min</p></div>`);
+                }
+            } catch (err) { console.warn('requests:', err.message); }
+
+            for (const k of Object.keys(markers)) if (!seen.has(k)) { dropMarker(k); delete meta[k]; }
+            updateLegend();
+            document.getElementById('mon-clock').textContent =
+                new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function updateLegend() {
+            const el = document.getElementById('mon-legend');
+            let html = '<b>Servicios</b>';
+            const tally = {};
+            for (const k of Object.keys(meta)) {
+                if (!markers[k]) continue;
+                const m = meta[k];
+                tally[m.kind] = (tally[m.kind] || 0) + 1;
+                tally[m.type + ':' + m.kind] = (tally[m.type + ':' + m.kind] || 0) + 1;
+            }
+            for (const s of SERVICES) {
+                html += `<div><span class="mon-dot" style="background:${s.color}"></span>${s.emoji} ${s.label}<span class="mon-cnt">${tally[s.type + ':drv'] || 0} 🚗 · ${tally[s.type + ':req'] || 0} 👤</span></div>`;
+            }
+            html += `<div style="margin-top:4px;opacity:.85"><span class="mon-dot" style="background:#fff;border:2px solid #94a3b8;box-sizing:border-box"></span>👤 Cliente esperando<span class="mon-cnt">${tally.req || 0}</span></div>`;
+            html += `<div style="opacity:.85">🚗 Total conductores<span class="mon-cnt">${tally.drv || 0}</span></div>`;
+            el.innerHTML = html;
+        }
+
+        refresh();
+        setInterval(refresh, POLL_MS);
+    })();
+    </script>
+    <style>.mon-home{position:fixed;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:1100;background:#fff;border:1px solid #d1d5db;border-radius:999px;padding:8px 12px;text-decoration:none;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.18)}</style>
+    <a class="mon-home" href="https://yucatanmx.com/">&#127968; Inicio</a>
+</body>
+</html>

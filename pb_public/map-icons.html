@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin | Map Icons</title>
+<link rel="icon" type="image/png" href="/images/favicon-32x32.png" sizes="32x32">
+<style>
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#faf6ef;color:#2d2418;margin:0;padding:20px}
+h1{color:#a0522d;font-size:22px;margin:0 0 4px}
+.sub{color:#7a6a55;font-size:13px;margin:0 0 16px}
+.token-box{margin:12px 0;display:flex;gap:8px}
+.token-box input{flex:1;padding:10px;font-size:14px;border:1px solid #ccc;border-radius:6px}
+button{padding:9px 14px;font-size:14px;border:none;border-radius:6px;background:#a0522d;color:#fff;cursor:pointer}
+button.ghost{background:#e8e0d2;color:#5a4a38}
+button.danger{background:#b3432b}
+button:hover{opacity:.9}
+#status{font-size:13px;color:#7a6a55;min-height:18px;margin:6px 0 14px}
+.card{background:#fff;border:1px solid #e5dcc9;border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:12px;align-items:center}
+.card img.thumb,.card .ph{width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none;background:#f1ead9;display:flex;align-items:center;justify-content:center;font-size:22px}
+.card .meta{flex:1;min-width:0}
+.card .name{font-weight:600;font-size:15px}
+.card .info{font-size:12px;color:#8a7a63}
+.badge{display:inline-block;background:#efe6d4;color:#7c5a33;border-radius:10px;padding:1px 8px;font-size:11px;text-transform:uppercase;margin-left:6px}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+form.add{background:#fff;border:1px solid #e5dcc9;border-radius:10px;padding:14px;margin-top:22px}
+form.add h2{font-size:15px;margin:0 0 10px;color:#a0522d}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+input,select,textarea{width:100%;padding:8px;font-size:13px;border:1px solid #ccc;border-radius:6px;font-family:inherit}
+textarea{resize:vertical}
+label{font-size:11px;color:#8a7a63;display:block;margin-bottom:2px}
+.back{font-size:13px;color:#a0522d;text-decoration:none}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+<a class="back" href="/dashboard.html">&larr; Dashboard</a>
+<h1>Community Map Icons</h1>
+<p class="sub">Upload custom marker icons and manage points for the Parqueo map.</p>
+
+<div class="token-box">
+  <input id="tok" type="password" placeholder="ADMIN_RESET_TOKEN" autocomplete="off">
+  <button onclick="saveTok()">Save</button>
+  <button class="ghost" onclick="loadPoints()">Load points</button>
+</div>
+<div id="status"></div>
+<div id="list"></div>
+
+<form class="add" onsubmit="addPoint(event)">
+  <h2>Add new point</h2>
+  <div class="grid">
+    <div><label>Name</label><input id="f-name" required></div>
+    <div><label>Type</label>
+      <select id="f-type">
+        <option value="pyramid">pyramid</option>
+        <option value="olmec">olmec</option>
+        <option value="cenote">cenote</option>
+        <option value="church">church</option>
+        <option value="museum">museum</option>
+        <option value="park">park</option>
+        <option value="monument">monument</option>
+        <option value="restaurant">restaurant</option>
+      </select>
+    </div>
+    <div><label>Latitude</label><input id="f-lat" type="number" step="any" required></div>
+    <div><label>Longitude</label><input id="f-lng" type="number" step="any" required></div>
+  </div>
+  <div style="margin-top:8px"><label>Description</label><textarea id="f-desc" rows="2"></textarea></div>
+  <div style="margin-top:10px"><button type="submit">Add point</button></div>
+</form>
+
+<script>
+const TYPE_EMOJI={olmec:'🗿',pyramid:'🏛️',cenote:'💧',church:'⛪',museum:'🏛️',park:'🌳',monument:'🗼',restaurant:'🍽️'};
+const status=(m)=>document.getElementById('status').textContent=m;
+const token=()=>sessionStorage.getItem('admin_token')||'';
+const hdrs=()=>{const h={'Content-Type':'application/json'};if(token())h['x-admin-token']=token();return h};
+function saveTok(){const t=document.getElementById('tok').value.trim();if(t)sessionStorage.setItem('admin_token',t);if(!token()){status('✗ enter token first');return}status('token saved');loadPoints()}
+async function api(path,opts={}){opts.headers=Object.assign(hdrs(),opts.headers||{});return fetch(path,opts)}
+async function loadPoints(){
+  if(!token())return status('✗ enter token first');
+  try{
+    const r=await api('/api/rtm/admin-map-points');
+    if(r.status===401)return status('✗ wrong token');
+    const d=await r.json();
+    render(d.items||[]);
+    status((d.items||[]).length+' points loaded');
+  }catch(e){status('✗ '+e.message)}
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(items){
+  const el=document.getElementById('list');
+  el.innerHTML=items.map(p=>`
+  <div class="card" data-id="${p.id}">
+    ${p.icon?`<img class="thumb" src="/api/files/attractions/${p.id}/${esc(p.icon)}" alt="">`:`<div class="ph">${TYPE_EMOJI[p.type]||'📍'}</div>`}
+    <div class="meta">
+      <div class="name">${esc(p.name)}<span class="badge">${esc(p.type)}</span></div>
+      <div class="info">${(+p.latitude).toFixed(5)}, ${(+p.longitude).toFixed(5)}${p.description?' · '+esc(p.description):''}</div>
+    </div>
+    <div class="actions">
+      <button class="ghost" onclick="document.getElementById('up-${p.id}').click()">Upload</button>
+      <input type="file" id="up-${p.id}" accept="image/png,image/jpeg,image/webp,image/svg+xml" onchange="uploadIcon('${p.id}',this)">
+      ${p.icon?`<button class="ghost" onclick="clearIcon('${p.id}')">Clear</button>`:''}
+      <button class="danger" onclick="delPoint('${p.id}','${esc(p.name).replace(/'/g,"\\'")}')">Delete</button>
+    </div>
+  </div>`).join('')||'<p>No points yet.</p>';
+}
+async function uploadIcon(id,input){
+  if(!input.files.length)return;
+  const fd=new FormData();
+  fd.append('id',id);
+  fd.append('icon',input.files[0]);
+  const r=await api('/api/rtm/admin-set-icon',{method:'POST',body:fd});
+  const d=await r.json().catch(()=>({}));
+  if(d.ok){status('icon updated');loadPoints()}else status('✗ '+(d.error||r.status));
+  input.value='';
+}
+async function clearIcon(id){
+  const r=await api('/api/rtm/admin-clear-icon',{method:'POST',body:JSON.stringify({id})});
+  const d=await r.json().catch(()=>({}));
+  if(d.ok){status('icon cleared');loadPoints()}else status('✗ '+(d.error||r.status));
+}
+async function delPoint(id,name){
+  if(!confirm('Delete "'+name+'"?'))return;
+  const r=await api('/api/rtm/admin-delete-point',{method:'POST',body:JSON.stringify({id})});
+  const d=await r.json().catch(()=>({}));
+  if(d.ok){status('deleted');loadPoints()}else status('✗ '+(d.error||r.status));
+}
+async function addPoint(ev){
+  ev.preventDefault();
+  if(!token())return status('✗ enter token first');
+  const body={
+    name:document.getElementById('f-name').value.trim(),
+    type:document.getElementById('f-type').value,
+    latitude:+document.getElementById('f-lat').value,
+    longitude:+document.getElementById('f-lng').value,
+    description:document.getElementById('f-desc').value.trim()
+  };
+  const r=await api('/api/rtm/admin-add-point',{method:'POST',body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));
+  if(d.ok){status('point added');ev.target.reset();loadPoints()}else status('✗ '+(d.error||r.status));
+}
+if(token()){document.getElementById('tok').value='••••••••';loadPoints()}
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="app_title">Pesca Yucatán</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="fish.css?v=14" />
+</head>
+<body>
+  <header class="fish-header">
+    <h1 data-i18n="app_title">Pesca Yucatán</h1>
+    <div class="header-actions">
+      <button id="lang-toggle" class="lang-btn" data-i18n="lang_toggle" aria-label="Cambiar idioma">🌐 EN</button>
+      <button id="btn-settings" class="icon-btn" data-i18n="app_settings" aria-label="Ajustes">⚙️</button>
+    </div>
+  </header>
+
+  <main class="fish-main">
+    <!-- COMMUNITY -->
+    <section id="tab-community" class="tab-panel">
+      <div class="subtabs">
+        <button class="subtab-btn active" data-subtab="all" data-i18n="community_all">Todos</button>
+        <button class="subtab-btn" data-subtab="mine" data-i18n="community_mine">Mis</button>
+        <button class="subtab-btn" data-subtab="recipes" data-i18n="community_recipes">Recetas</button>
+      </div>
+      <div class="feed empty-state">
+        <p data-i18n="community_empty">Aún no hay publicaciones — ¡ comparte tu primera captura!</p>
+        <div id="locations-list" class="loc-list"></div>
+      </div>
+    </section>
+
+    <!-- GUIDE -->
+    <section id="tab-guide" class="tab-panel">
+      <div class="guide-header">
+        <h2 class="section-title" data-i18n="guide_title">Guía de Peces</h2>
+        <button id="btn-add-fish" class="btn-ghost" data-i18n="guide_add">➕ Agregar pez</button>
+      </div>
+      <div id="guide-grid" class="fish-grid">
+        <p class="empty" data-i18n="guide_loading">Cargando especies…</p>
+      </div>
+    </section>
+
+    <!-- SPOTS – full-screen map (default tab) -->
+    <section id="tab-spots" class="tab-panel active">
+      <div id="spots-map" class="map-full"></div>
+      <div class="map-overlay">
+        <div class="spots-legend">
+          <span class="badge">🎯 Tu punto</span>
+          <span class="badge">🐠 Arrecife rocoso</span>
+          <span class="badge">🚫 Zona de no pesca</span>
+        </div>
+        <button id="btn-add-spot" class="fab primary" data-i18n="spots_add_tooltip" aria-label="Agregar punto">➕</button>
+      </div>
+    </section>
+
+    <!-- SHOPS – full-screen on-land map -->
+    <section id="tab-shops" class="tab-panel">
+      <div id="shops-map" class="map-full"></div>
+      <div class="map-overlay">
+                <div class="chips">
+          <button class="chip active" data-cat="local-guide" data-i18n="shop_chips_local_guide">Local Guide</button>
+          <button class="chip" data-cat="accesorios" data-i18n="shop_chips_accessories">Accesorios</button>
+          <button class="chip" data-cat="cebo" data-i18n="shop_chips_bait">Cebo</button>
+          <button class="chip" data-cat="tours" data-i18n="shop_chips_tours">Tours</button>
+          <button class="chip" data-cat="alquileres" data-i18n="shop_chips_rentals">Alquileres</button>
+        </div>
+        <button id="btn-add-shop" class="fab primary" data-i18n="shops_add_tooltip" aria-label="Agregar">➕</button>
+      </div>
+    </section>
+
+    <!-- RULES -->
+    <section id="tab-rules" class="tab-panel">
+      <h2 class="section-title" data-i18n="rules_title">Reglas y licencias</h2>
+      <div class="rules-card">
+        <div id="rules-content"></div>
+        <p class="rules-note" data-i18n="rules_note">No puedes vender los peces que capturas. Limpiar solo para consumo inmediato (nunca a bordo para billfish).</p>
+        <button class="report-btn" data-i18n="report_title">🚩 Reportar un problema / vendedor bloqueado</button>
+      </div>
+    </section>
+
+    <div id="save-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="save-title"><div class="modal-body"><h3 id="save-title" data-i18n="spots_save_title">Guardar mi ubicacion</h3><textarea id="save-comment" data-i18n="spots_save_comment" rows="3" placeholder="Comentario / captura (opcional)"></textarea><label class="save-opt"><input type="checkbox" id="save-public"><span data-i18n="spots_save_public">Publico</span></label><div class="modal-actions"><button id="save-cancel" class="btn" data-i18n="modal_close">Cancelar</button><button id="save-ok" class="btn primary" data-i18n="spots_save_ok">Guardar</button></div></div></div>
+  </main>
+
+  <!-- Fish detail modal -->
+  <div id="fish-detail" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="modal-close" data-i18n="modal_close" aria-label="Cerrar">✕</button>
+      <img class="modal-img" src="" alt="" />
+      <div class="modal-body">
+        <h3 class="modal-title"></h3>
+        <p class="modal-sci"></p>
+        <p class="modal-meta"><span class="label" data-i18n="detail_where">Dónde encontrarlo:</span> <span class="modal-where"></span></p>
+        <p class="modal-meta"><span class="label" data-i18n="detail_bait">Cebo y señuelos:</span> <span class="modal-bait"></span></p>
+        <p class="modal-attr"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add a fish modal -->
+  <div id="add-fish" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="modal-close" data-i18n="modal_close" aria-label="Cerrar">✕</button>
+      <form id="add-fish-form" class="add-fish-form">
+        <h3 data-i18n="addfish_title">Agregar un pez</h3>
+        <p class="hint" data-i18n="addfish_hint">Comparte una especie para que aparezca en la guía.</p>
+        <label><span data-i18n="form_common">Nombre común</span> <input type="text" name="common" required></label>
+        <label><span data-i18n="form_local">Nombre local</span> <input type="text" name="local" placeholder="ej. Robalo" data-i18n="form_local_ph"></label>
+        <label><span data-i18n="form_sci">Nombre científico</span> <input type="text" name="sci" placeholder="ej. Centropomus undecimalis" data-i18n="form_sci_ph"></label>
+        <label><span data-i18n="form_where">¿Dónde encontrarlo?</span> <textarea name="where" rows="2" required></textarea></label>
+        <label><span data-i18n="form_bait">Cebo y señuelos</span> <textarea name="bait" rows="2"></textarea></label>
+        <label><span data-i18n="form_photo">Foto</span> <input type="file" id="photo" name="photo" accept="image/*">
+          <div id="photo-preview" class="preview-box"></div>
+        </label>
+        <button type="submit" class="btn-primary" data-i18n="form_save">Guardar pez</button>
+      </form>
+    </div>
+  </div>
+
+  <nav class="fish-bottom-nav" role="tablist">
+    <button class="nav-item" data-tab="community">
+      <span class="nav-icon">👥</span><span class="nav-label" data-i18n="nav_community">Comunidad</span>
+    </button>
+    <button class="nav-item" data-tab="guide">
+      <span class="nav-icon">🐟</span><span class="nav-label" data-i18n="nav_guide">Guía</span>
+    </button>
+    <button class="nav-item active" data-tab="spots">
+      <span class="nav-icon">📍</span><span class="nav-label" data-i18n="nav_spots">Puntos</span>
+    </button>
+    <button class="nav-item" data-tab="shops">
+      <span class="nav-icon">🏪</span><span class="nav-label" data-i18n="nav_shops">Tiendas</span>
+    </button>
+    <button class="nav-item" data-tab="rules">
+      <span class="nav-icon">📜</span><span class="nav-label" data-i18n="nav_rules">Reglas</span>
+    </button>
+  </nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="guide-data.js?v=1"></script>
+  <script src="lang.js?v=4"></script>
+  <script src="fish.js?v=14"></script>
+</body>
+</html>

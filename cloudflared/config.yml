@@ -1,0 +1,16 @@
+tunnel: be13777f-7792-4225-a0da-38da2877f0de
+credentials-file: /tmp/cf-credentials.json
+ingress:
+  - hostname: yucatanmx.com
+    service: http://nginx_frontend:80
+  - hostname: www.yucatanmx.com
+    service: http://nginx_frontend:80
+  - hostname: bus.yucatanmx.com
+    service: http://nginx_frontend:80
+  - hostname: moto.yucatanmx.com
+    service: http://nginx_frontend:80
+  - hostname: fishing.yucatanmx.com
+    service: http://nginx_frontend:80
+  - hostname: parque.yucatanmx.com
+    service: http://nginx_frontend:80
+  - service: http_status:404

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yucatán en Vivo | Live</title>
+    <link rel="icon" type="image/png" href="/images/favicon-32x32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/css/dashboard.css?v=1" />
+    <script src="/js/config.js?v=5"></script>
+    <script src="/js/i18n.js?v=6"></script>
+    <script src="/js/dashboard.js?v=4"></script>
+</head>
+<body>
+    <main class="dash">
+        <header class="dash-head">
+            <a class="dash-back" href="/">← <span data-i18n="dashboard.back">Back to portal</span></a>
+            <a class="dash-back" href="/monitor.html" style="margin-left:10px">🗺️ Monitor</a>
+            <a class="dash-back" href="https://yucatanmx.com/" style="margin-left:10px">🏠 Inicio</a>
+            <a class="dash-back" href="https://bus.yucatanmx.com/" style="margin-left:10px">🚐</a><a class="dash-back" href="https://moto.yucatanmx.com/">🛺</a><a class="dash-back" href="https://drive.yucatanmx.com/">🚗</a><a class="dash-back" href="https://a-usted.yucatanmx.com/">🏍️</a>
+            <a class="dash-back" href="/map-icons" style="margin-left:auto;margin-right:14px;font-size:13px">Map icons</a>
+            <div class="dash-lang">
+                <button data-language-switcher data-lang="es">ES</button>
+                <button data-language-switcher data-lang="en">EN</button>
+            </div>
+        </header>
+
+        <h1 class="dash-title" data-i18n="dashboard.title">Live</h1>
+        <p class="dash-sub" data-i18n="dashboard.subtitle">How many people are using each app right now</p>
+
+        <div class="total-card">
+            <div class="total-count" id="total-count">0</div>
+            <div class="total-label" data-i18n="dashboard.total">online now</div>
+        </div>
+
+        <div class="app-grid" id="app-grid"></div>
+
+        <p class="dash-updated" id="updated"></p>
+    </main>
+</body>
+</html>

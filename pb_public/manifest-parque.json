@@ -1,0 +1,23 @@
+{
+  "name": "Yucatán en Vivo · Parque",
+  "short_name": "Parque",
+  "description": "Mapa del parque de atracciones, atracciones y gemas ocultas · Merida, Yucatan",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    {
+      "src": "/images/parque-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/parque-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

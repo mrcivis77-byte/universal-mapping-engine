@@ -1,0 +1,23 @@
+# Runtime data
+pb_data/
+
+# Generated at boot
+pb_public/config.json
+
+# Secrets / local overrides
+.env.local
+config.env.local
+
+# OS / editor junk
+.DS_Store
+*.log
+
+# Backups / junk
+*.bak
+*.bak.*
+host_backup_*/
+logs/
+node_modules/
+__pycache__/
+_probe.js
+config.env

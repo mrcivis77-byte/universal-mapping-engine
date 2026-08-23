@@ -1,0 +1,16 @@
+# Tunnel image: Alpine + official cloudflared binary.
+# The distroless cloudflared image has no shell, so we build our own so the
+# token gate in tunnel-entrypoint.sh can run.
+FROM alpine:3.20
+
+ARG TARGETARCH
+
+RUN apk add --no-cache ca-certificates jq \
+    && wget -q -O /usr/local/bin/cloudflared \
+        "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH}" \
+    && chmod +x /usr/local/bin/cloudflared
+
+COPY docker/tunnel-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]

@@ -1,0 +1,14 @@
+# Central hub (FastAPI registry) - served on this PC behind nginx at
+# /api/heartbeat, /api/nearest-town, /api/towns, /api/health.
+FROM python:3.12-alpine
+
+WORKDIR /app
+
+COPY central-hub/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY central-hub/app.py /app/app.py
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

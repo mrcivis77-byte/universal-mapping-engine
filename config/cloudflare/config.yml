@@ -1,0 +1,26 @@
+# Cloudflare Tunnel configuration template.
+#
+# Two ways to expose this node publicly:
+#
+# 1. Named tunnel (this file):
+#    cloudflared tunnel login
+#    cloudflared tunnel create your-town-mapping
+#    cloudflared tunnel route dns your-town-mapping app.your-domain.com
+#    cp ~/.cloudflared/<tunnel-id>.json config/cloudflare/
+#    Then set CLOUDFLARE_TUNNEL_ID in config.env and run the tunnel
+#    container with this file mounted at /etc/cloudflared/config.yml.
+#
+# 2. Token (simpler, used by this repo's docker-compose.yml):
+#    Set CLOUDFLARE_TUNNEL_TOKEN in config.env. The tunnel container
+#    runs `cloudflared tunnel run --token ...` and this file is unused.
+#
+# If you use option 1, mount this directory read-only into the tunnel
+# container at /etc/cloudflared and set the CLOUDFLARE_TUNNEL_ID env var.
+
+tunnel: <your-tunnel-id>
+credentials-file: /etc/cloudflared/<your-tunnel-id>.json
+
+ingress:
+  - hostname: app.your-domain.com
+    service: http://frontend:80
+  - service: http_status:404

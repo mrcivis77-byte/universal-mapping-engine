@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yucatán en Vivo | Aplicaciones</title>
+    <link rel="icon" type="image/png" href="/images/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/images/favicon-16x16.png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/landing/landing.css?v=2" />
+</head>
+<body>
+    <main class="portal">
+        <header class="hero">
+            <h1>Yucatán <span>en Vivo</span></h1>
+            <p class="tagline">Aplicaciones de mapas en tiempo real · Merida, Yucatan</p>
+        </header>
+
+        <nav class="grid" aria-label="Aplicaciones">
+            <a class="card" href="https://bus.yucatanmx.com">
+                <img src="/images/bus.png" alt="" />
+                <h2>Rutas de Bus</h2>
+                <p>Autobuses del transporte urbano</p>
+            </a>
+
+            <a class="card" href="https://moto.yucatanmx.com">
+                <img src="/images/mototaxi.png" alt="" />
+                <h2>Mototaxis</h2>
+                <p>Ubicación de mototaxis en tiempo real</p>
+            </a>
+
+            <a class="card" href="https://fishing.yucatanmx.com">
+                <img src="/images/fishing.png" alt="" />
+                <h2>Pesca</h2>
+                <p>Embarcaciones de pesca y zonas</p>
+            </a>
+
+            <a class="card" href="https://parque.yucatanmx.com">
+                <img src="/images/parque.png" alt="" />
+                <h2>Parque de Atracciones</h2>
+                <p>Mapa del parque, atracciones y gemas ocultas</p>
+            </a>
+        </nav>
+
+        <footer class="footer">
+            <p>Local Hosted in Chelem</p>
+            <a class="taco-link" href="https://buymeacoffee.com/mr.c77" target="_blank" rel="noopener">Buy me a Taco 🌮</a>
+        </footer>
+    </main>
+</body>
+</html>

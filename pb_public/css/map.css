@@ -1,0 +1,1712 @@
+/* Universal Map Styles */
+#map {
+    width: 100%;
+    /* dvh tracks the visible viewport (browser UI collapses), so the map
+       fills exactly what's on screen instead of overflowing behind the
+       URL bar / home-indicator on phones. */
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
+    /* Adjust for bottom navigation bar (approximately 60px) */
+    padding-bottom: 60px;
+}
+
+/* User Location Marker */
+.user-location-marker {
+    position: relative;
+}
+
+.user-pulse {
+    width: 20px;
+    height: 20px;
+    background: #3b82f6;
+    border-radius: 50%;
+    position: relative;
+    animation: pulse 2s infinite;
+}
+
+.user-pulse::before,
+.user-pulse::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #3b82f6;
+    opacity: 0.5;
+}
+
+.user-pulse::before {
+    animation: pulse-ring 2s infinite;
+}
+
+.user-pulse::after {
+    animation: pulse-ring 2s infinite 0.5s;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(2.5);
+        opacity: 0;
+    }
+}
+
+/* Hidden Gem Markers */
+.hidden-gem-marker {
+    position: relative;
+}
+
+.gem-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    border: 3px solid #fff;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.gem-icon:hover {
+    transform: scale(1.2);
+}
+
+.gem-icon.rare {
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+}
+
+.gem-icon.legendary {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    animation: legendary-glow 2s infinite;
+}
+
+@keyframes legendary-glow {
+    0%, 100% {
+        box-shadow: 0 0 10px #ef4444;
+    }
+    50% {
+        box-shadow: 0 0 20px #ef4444, 0 0 30px #dc2626;
+    }
+}
+
+/* Proximity Alert Markers */
+.proximity-alert-marker {
+    position: relative;
+    z-index: 1000;
+}
+
+.proximity-icon {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.icon-content {
+    font-size: 48px;
+    z-index: 2;
+    animation: bounce 1s infinite;
+}
+
+.pulse-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid #10b981;
+    animation: proximity-pulse 1.5s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes proximity-pulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+/* Popup Styles */
+.leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.gem-popup,
+.proximity-popup {
+    min-width: 200px;
+}
+
+.gem-popup h3,
+.proximity-popup h3 {
+    margin: 0 0 8px 0;
+    color: #1f2937;
+    font-size: 16px;
+}
+
+.gem-popup p,
+.proximity-popup p {
+    margin: 4px 0;
+    color: #4b5563;
+    font-size: 14px;
+}
+
+.gem-popup img {
+    border-radius: 8px;
+    margin-top: 8px;
+}
+
+.distance {
+    font-weight: bold;
+    color: #10b981;
+}
+
+/* Welcome Banner */
+.welcome-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    padding: 16px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: slide-down 0.5s ease;
+}
+
+@keyframes slide-down {
+    from {
+        transform: translateY(-100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.welcome-banner.hidden {
+    animation: slide-up 0.5s ease forwards;
+}
+
+@keyframes slide-up {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(-100%);
+    }
+}
+
+.welcome-banner-content {
+    flex: 1;
+}
+
+.welcome-banner h2 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+}
+
+.welcome-banner p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.welcome-banner-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+
+.welcome-banner-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Mode Toggle */
+.mode-toggle {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border-radius: 25px;
+    padding: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: flex;
+    gap: 8px;
+}
+
+.mode-toggle button {
+    border: none;
+    background: transparent;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.mode-toggle button.active {
+    background: #3b82f6;
+    color: white;
+}
+
+.mode-toggle button:hover:not(.active) {
+    background: #f3f4f6;
+}
+
+/* Language Switcher */
+.language-switcher {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    gap: 8px;
+}
+
+.language-switcher button {
+    border: none;
+    background: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.language-switcher button.active {
+    background: #3b82f6;
+    color: white;
+}
+
+.language-switcher button:hover:not(.active) {
+    background: #f3f4f6;
+}
+
+/* Travel Features Toggle */
+.travel-toggle {
+    position: fixed;
+    bottom: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border-radius: 25px;
+    padding: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: flex;
+    gap: 8px;
+}
+
+.travel-btn {
+    border: none;
+    background: transparent;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.travel-btn:hover {
+    background: #f3f4f6;
+    transform: scale(1.1);
+}
+
+.travel-btn.active {
+    background: #3b82f6;
+    color: white;
+}
+
+/* Restaurant Tab */
+.restaurant-tab {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fade-in 0.3s ease;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px
+        calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.restaurant-tab.hidden {
+    display: none;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.restaurant-tab-content {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: calc(80dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(80vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    animation: slide-up 0.3s ease;
+}
+
+@keyframes slide-up {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.restaurant-tab-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.tab-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tab-icon {
+    font-size: 28px;
+}
+
+.tab-title h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #1f2937;
+}
+
+.tab-close {
+    background: transparent;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #6b7280;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.tab-close:hover {
+    background: #f3f4f6;
+    color: #1f2937;
+}
+
+/* Restaurant Filters */
+.restaurant-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.filter-btn {
+    border: 1px solid #e5e7eb;
+    background: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4b5563;
+    transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.filter-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* Restaurant List */
+.restaurant-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.restaurant-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #f9fafb;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.restaurant-item:hover {
+    background: #f3f4f6;
+    transform: translateX(4px);
+}
+
+.restaurant-icon {
+    font-size: 32px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.restaurant-info {
+    flex: 1;
+}
+
+.restaurant-name {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.restaurant-cuisine {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.restaurant-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.rating {
+    font-size: 14px;
+    color: #f59e0b;
+}
+
+.price-range {
+    font-size: 14px;
+    color: #10b981;
+    font-weight: 600;
+}
+
+.restaurant-specialties {
+    margin: 0;
+    font-size: 13px;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.restaurant-view-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.restaurant-view-btn:hover {
+    background: #2563eb;
+}
+
+/* Restaurant Map Toggle */
+.restaurant-map-toggle {
+    text-align: center;
+}
+
+.map-toggle-btn {
+    background: white;
+    border: 2px solid #3b82f6;
+    color: #3b82f6;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.map-toggle-btn:hover {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-icon {
+    font-size: 18px;
+}
+
+/* Restaurant Marker */
+.restaurant-marker {
+    filter: hue-rotate(30deg);
+}
+
+/* Restaurant Details Popup */
+.restaurant-details-popup {
+    min-width: 250px;
+}
+
+.details-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.details-icon {
+    font-size: 32px;
+}
+
+.details-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #1f2937;
+}
+
+.details-cuisine {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.details-rating {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.details-rating .stars {
+    font-size: 16px;
+    color: #f59e0b;
+}
+
+.details-rating .price {
+    font-size: 14px;
+    color: #10b981;
+    font-weight: 600;
+}
+
+.details-description {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #4b5563;
+    line-height: 1.5;
+}
+
+.details-specialties {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.details-specialties strong {
+    color: #1f2937;
+}
+
+.details-address,
+.details-phone {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.details-address strong,
+.details-phone strong {
+    color: #1f2937;
+}
+
+.details-phone a {
+    color: #3b82f6;
+    text-decoration: none;
+}
+
+.details-phone a:hover {
+    text-decoration: underline;
+}
+
+.details-hours {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.details-hours strong {
+    color: #1f2937;
+}
+
+.status {
+    font-weight: 600;
+}
+
+.status.open {
+    color: #10b981;
+}
+
+.status.closed {
+    color: #ef4444;
+}
+
+.details-opening-hours {
+    margin: 8px 0 0 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.details-opening-hours strong {
+    color: #1f2937;
+}
+
+.details-opening-hours ul {
+    margin: 4px 0 0 0;
+    padding-left: 20px;
+}
+
+.details-opening-hours li {
+    margin: 2px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .mode-toggle {
+        bottom: 10px;
+        width: 90%;
+        justify-content: center;
+    }
+
+    .language-switcher {
+        top: 8px;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .language-switcher button {
+        min-height: 40px;
+        padding: 8px 16px;
+    }
+
+    .travel-toggle {
+        bottom: 100px;
+        width: 90%;
+        justify-content: center;
+    }
+
+    .ride-panel {
+        padding: 10px;
+    }
+
+    .ride-panel-inner {
+        width: 95%;
+        max-width: 95vw;
+        max-height: calc(90dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        max-height: calc(90vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        padding: 16px;
+    }
+
+    .restaurant-tab-content {
+        width: 95%;
+        max-height: calc(85dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        max-height: calc(85vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        padding: 16px;
+    }
+
+    .restaurant-filters {
+        gap: 6px;
+    }
+
+    .filter-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .restaurant-item {
+        padding: 12px;
+        gap: 12px;
+    }
+
+    .restaurant-icon {
+        font-size: 24px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .restaurant-name {
+        font-size: 14px;
+    }
+
+    .restaurant-cuisine {
+        font-size: 12px;
+    }
+
+    .restaurant-specialties {
+        font-size: 11px;
+    }
+
+    .restaurant-view-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .welcome-banner {
+        padding: 12px;
+    }
+
+    .welcome-banner h2 {
+        font-size: 16px;
+    }
+
+    .welcome-banner p {
+        font-size: 12px;
+    }
+}
+
+/* Theme Park Map Mode */
+.theme-park-mode .leaflet-tile {
+    filter: contrast(1.15) saturate(1.3) brightness(1.05);
+}
+
+/* Travel toggle buttons (text labels) */
+.travel-btn {
+    font-weight: 600;
+    font-size: 13px;
+    padding: 0 14px;
+    width: auto;
+    border-radius: 20px;
+}
+
+/* Driver / vessel popups */
+.driver-popup,
+.vessel-popup {
+    min-width: 160px;
+}
+
+.driver-popup h3,
+.vessel-popup h3 {
+    margin: 0 0 6px 0;
+    font-size: 15px;
+    color: #1f2937;
+}
+
+.driver-popup-photo {
+    display: block;
+    width: 84px;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 14px;
+    margin: 2px auto 8px auto;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.driver-popup p,
+.vessel-popup p {
+    margin: 2px 0;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.driver-popup-full {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+/* Transit vehicle markers: emoji on a colored disc.
+   Leaflet's default marker background would otherwise cover the disc. */
+.transit-emoji-marker {
+    background: transparent;
+    border: none;
+}
+
+.transit-emoji-disc {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
+    font-size: 29px;
+    line-height: 1;
+}
+
+/* ============ Ride System (transit apps) ============ */
+
+.ride-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 55%, #7c3aed 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.ride-overlay.hidden {
+    display: none;
+}
+
+.ride-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 32px 28px;
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    color: #1e293b;
+}
+
+.ride-card h2 {
+    margin: 0 0 6px;
+    font-size: 24px;
+}
+
+.ride-card p {
+    margin: 0 0 20px;
+    color: #64748b;
+    font-size: 15px;
+}
+
+.role-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.role-btn-driver {
+    background: #10b981;
+}
+
+.role-btn:active {
+    transform: scale(0.98);
+}
+
+/* Generic ride panel (auth / request) */
+.ride-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 20px
+        calc(20px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ride-panel-inner {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    color: #1e293b;
+    max-width: 400px;
+    width: 100%;
+    max-height: calc(80dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(80vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: auto;
+    margin: auto;
+    padding-bottom: 40px;
+    position: relative;
+}
+
+.ride-panel-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.ride-panel-close:active {
+    background: #e2e8f0;
+}
+
+.ride-panel.hidden {
+    display: none;
+}
+
+.ride-panel h3 {
+    margin: 0 0 14px;
+    font-size: 18px;
+}
+
+.ride-panel input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 15px;
+    /* Ensure input fields don't cause overflow issues */
+    max-width: 100%;
+}
+
+.req-label {
+    display: block;
+    font-size: 13px;
+    color: #64748b;
+    margin: 6px 0 6px;
+}
+
+.dest-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.req-dest-display {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.ride-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.ride-btn.primary {
+    background: #2563eb;
+    color: #fff;
+}
+
+.ride-btn.danger {
+    background: #ef4444;
+    color: #fff;
+}
+
+.ride-btn.ghost {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.ride-btn.link {
+    background: transparent;
+    color: #2563eb;
+    text-decoration: underline;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 6px;
+}
+
+.ride-error {
+    color: #dc2626;
+    font-size: 13px;
+    min-height: 18px;
+    margin-top: 4px;
+}
+
+/* Registration method toggle */
+#reg-method-toggle, #login-method-toggle, #recover-method-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+#reg-method-toggle .ride-btn, #login-method-toggle .ride-btn, #recover-method-toggle .ride-btn {
+    flex: 1;
+    padding: 10px;
+    font-size: 14px;
+}
+
+#reg-method-toggle .ride-btn.active, #login-method-toggle .ride-btn.active, #recover-method-toggle .ride-btn.active {
+    background: #2563eb;
+    color: #fff;
+}
+
+/* Request button (customer) — now lives inside the top nav bar; the
+   positioning in index.html centers it. Visibility is driven by the
+   .hidden class toggle (show() removes it), so the base style is visible. */
+.request-btn {
+    display: inline-block;
+}
+
+.request-btn.hidden {
+    display: none;
+}
+
+.request-btn.cancel {
+    background: #ef4444;
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+}
+
+/* Active request status */
+.ride-status p {
+    margin: 0 0 14px;
+    color: #334155;
+    font-size: 15px;
+}
+
+/* Toast */
+.ride-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9500;
+    background: #0f172a;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 24px;
+    font-size: 14px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    max-width: 90vw;
+    text-align: center;
+}
+
+.ride-toast.hidden {
+    display: none;
+}
+
+/* Request popup */
+.request-popup {
+    min-width: 150px;
+}
+
+.request-popup h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    color: #1f2937;
+}
+
+.request-popup p {
+    margin: 0;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+/* Cancel confirmation modal */
+.cancel-confirm {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 24px
+        calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+.cancel-confirm.hidden {
+    display: none;
+}
+
+.cancel-confirm-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 320px;
+    width: 100%;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    text-align: center;
+}
+
+.cancel-confirm-box p {
+    margin: 0 0 16px;
+    font-size: 16px;
+    color: #0f172a;
+}
+
+.cancel-confirm-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.cancel-confirm-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cancel-confirm-btn.no {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.cancel-confirm-btn.yes {
+    background: #dc2626;
+    color: #fff;
+}
+
+/* Destination pin: drop, drag to adjust, confirm/cancel */
+.pin-confirm-bar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    z-index: 2000;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    max-width: 92vw;
+}
+
+.pin-confirm-bar.hidden {
+    display: none;
+}
+
+.pin-confirm-coords {
+    font-size: 13px;
+    color: #475569;
+    font-family: monospace;
+    white-space: nowrap;
+}
+
+.pin-confirm-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pin-confirm-btn.ok {
+    background: #2563eb;
+    color: #fff;
+}
+
+.pin-confirm-btn.cancel {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+/* Gem Form Modal - Use transition-based visibility */
+.gem-form-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 10000;
+}
+
+.gem-form-modal.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.gem-form-modal.hidden {
+    display: none !important; /* beats any inline/class display */
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+}
+
+.gem-form-container {
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.gem-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.gem-form-header h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #1f2937;
+    font-weight: 700;
+}
+
+.gem-form-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6b7280;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+.gem-form-close:hover {
+    background: #f3f4f6;
+    color: #1f2937;
+}
+
+.gem-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.gem-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gem-form .form-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.gem-form input[type="text"],
+.gem-form input[type="file"],
+.gem-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 15px;
+    background: white;
+    color: #1f2937;
+}
+
+.gem-form input[type="text"]:focus,
+.gem-form textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.gem-form textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.gem-form select {
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 15px;
+    background: white;
+    color: #1f2937;
+    cursor: pointer;
+}
+
+.gem-form select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.image-preview {
+    min-height: 80px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 120px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.gem-form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.btn-cancel {
+    flex: 1;
+    background: #f3f4f6;
+    color: #1f2937;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+}
+
+.btn-submit {
+    flex: 1;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-submit:hover {
+    background: #1d4ed8;
+}
+
+/* Map Controls Styling */
+.map-controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    display: flex;
+    gap: 12px;
+}
+
+.control-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: none;
+    background: rgba(255, 255, 255, 0.95);
+    color: #1f2937;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+.control-btn:active {
+    transform: scale(0.98);
+}
+
+/* Add gem button - visible only in travel apps with hidden gems enabled */
+#add-gem-btn {
+    display: none;
+}
+
+/* Sparkle animation for hidden gems */
+@keyframes sparkle {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.9; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Gem markers in theme park mode get a special sparkle effect */
+.theme-park-mode .hidden-gem-marker {
+    animation: sparkle 2s infinite;
+}
+
+/* Theme park attraction markers glow effect */
+.theme-park-mode .proximity-alert-marker {
+    animation: parkGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes parkGlow {
+    from {
+        filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.7));
+        transform: scale(1);
+    }
+    to {
+        filter: drop-shadow(0 0 16px rgba(255, 193, 7, 0.9)) drop-shadow(0 0 24px rgba(255, 165, 0, 0.5));
+        transform: scale(1.05);
+    }
+}
+
+
+/* ================= Mayan theme - Add Hidden Gem modal ================= */
+.gem-form-modal {
+    background: rgba(26, 15, 5, 0.55);
+}
+
+.gem-form-container {
+    background: #f9f1dd;
+    border: 3px solid #d9a441;
+    border-radius: 18px;
+    padding: 0 22px 22px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+
+/* Stepped glyph band along the top (terracotta / jade / gold) */
+.gem-form-container::before {
+    content: "";
+    display: block;
+    height: 12px;
+    margin: 0 -22px 18px;
+    background: repeating-linear-gradient(
+        90deg,
+        #b34724 0 14px,
+        #14665c 14px 28px,
+        #d9a441 28px 42px,
+        #14665c 42px 56px
+    );
+}
+
+.gem-form-header {
+    border-bottom: 2px solid #d9a441;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+}
+
+.gem-form-header h2 {
+    color: #14665c;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+}
+
+.gem-form-close {
+    background: #d9a441;
+    color: #4a2c0f;
+    font-weight: 700;
+}
+
+.gem-form-close:hover {
+    background: #b34724;
+    color: #fff7e6;
+}
+
+.gem-form .form-group label {
+    color: #6b4a1e;
+}
+
+.gem-form input[type="text"],
+.gem-form textarea,
+.gem-form select {
+    background: #fffdf5;
+    border: 1.5px solid #d9c9a3;
+    border-radius: 10px;
+    color: #3a2a18;
+}
+
+.gem-form input[type="text"]:focus,
+.gem-form textarea:focus,
+.gem-form select:focus {
+    border-color: #14665c;
+    box-shadow: 0 0 0 3px rgba(20, 102, 92, 0.25);
+}
+
+.gem-form .form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.gem-form .btn-cancel {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 10px;
+    background: #e8dcc0;
+    color: #3a2a18;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.gem-form .btn-submit {
+    padding: 10px 18px;
+    border: 2px solid #d9a441;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #c9532c, #a63a1b);
+    color: #fff7e6;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.gem-form .btn-submit:hover {
+    filter: brightness(1.08);
+}
+
+.gem-form .image-preview img {
+    border: 2px solid #d9a441;
+    border-radius: 10px;
+}
+
+/* + button (top-right) that opens the Add Gem form */
+.add-gem-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    width: 46px;
+    height: 46px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #c9532c, #a63a1b);
+    color: #fff7e6;
+    box-shadow: 0 4px 14px rgba(166, 58, 27, 0.45);
+    cursor: pointer;
+}
+
+.add-gem-btn.shown {
+    display: flex;
+}

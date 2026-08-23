@@ -1,0 +1,699 @@
+// RTM custom API endpoints, served by the local PocketBase instance.
+//
+//   GET  /api/rtm/health     - liveness + identity of this town node
+//   GET  /api/rtm/combined   - cross-app snapshot (drivers, vessels,
+//                              hidden_gems, attractions) for a town
+//   GET  /api/rtm/config     - current frontend config (from config.json)
+//   POST /api/rtm/config     - merge partial JSON config; persists to
+//                              config.json and best-effort into config.env
+//
+// Field lists are explicit per collection so the combined payload stays
+// stable regardless of how the admin UI evolves the schema.
+//
+// PocketBase JSVM constraint: request handlers run in an isolated context and
+// do NOT see top-level file bindings (const/var/function). Every handler must
+// therefore be fully self-contained; only the runtime globals ($app, $os,
+// $apis, console, c, ...) are shared.
+
+routerAdd('GET', '/api/rtm/health', (c) => {  const ENV_FILE = '/config.env';
+
+  const readText = (path) => {
+    try {
+      const bytes = $os.readFile(path);
+      let out = '';
+      for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
+      return out;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const parseEnv = (text) => String(text).split('\n').map((line) => ({ line: line.replace(/\r$/, '') }));
+
+  const envToObject = (entries) => {
+    const out = {};
+    for (const { line } of entries) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      let value = trimmed.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      out[trimmed.slice(0, eq).trim()] = value;
+    }
+    return out;
+  };
+
+  try {
+    const town = envToObject(parseEnv(readText(ENV_FILE) || ''));
+    return c.json(200, {
+      ok: true,
+      town_id: town.TOWN_ID || 'unknown',
+      town_name: town.TOWN_NAME || 'unknown',
+      app_type: town.APP_TYPE || 'transit',
+      time: new Date().toISOString()
+    });
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+
+routerAdd('GET', '/api/rtm/combined', (c) => {
+  const FIELDS = {
+    drivers: [
+      'id', 'town', 'name', 'vehicle_type', 'license_plate',
+      'latitude', 'longitude', 'heading', 'speed', 'status', 'rating'
+    ],
+    vessels: [
+      'id', 'town', 'vessel_name', 'vessel_type', 'registration_number',
+      'latitude', 'longitude', 'heading', 'speed', 'status', 'crew_size'
+    ],
+    hidden_gems: [
+      'id', 'town', 'title', 'description', 'latitude', 'longitude',
+      'image', 'rarity', 'category', 'created'
+    ],
+    attractions: [
+      'id', 'town', 'name', 'type', 'icon', 'latitude', 'longitude',
+      'description', 'proximity_radius'
+    ]
+  };
+
+  const pick = (record, keys) => {
+    const out = {};
+    for (const key of keys) {
+      if (record.has(key)) {
+        const value = record.get(key);
+        out[key] = (typeof value !== 'undefined' && value !== null) ? value : null;
+      }
+    }
+    return out;
+  };
+
+  try {
+    const info = c.requestInfo();
+    const town = (info && info.query && info.query.town) ? String(info.query.town) : '';
+    const result = {
+      town: town || null,
+      drivers: [],
+      vessels: [],
+      hidden_gems: [],
+      attractions: []
+    };
+
+    const filter = town ? 'town = {:town}' : '';
+    const params = town ? { town } : {};
+
+    for (const name of Object.keys(FIELDS)) {
+      const records = $app.findRecordsByFilter(name, filter, '', 1000, 0, params);
+      result[name] = records.map((r) => pick(r, FIELDS[name]));
+    }
+
+    return c.json(200, result);
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+
+routerAdd('GET', '/api/rtm/config', (c) => {
+  const ENV_FILE = '/config.env';
+  const CONFIG_JSON = '/pb/pb_public/config.json';
+
+  const readText = (path) => {
+    try {
+      const bytes = $os.readFile(path);
+      let out = '';
+      for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
+      return out;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const parseEnv = (text) => String(text).split('\n').map((line) => ({ line: line.replace(/\r$/, '') }));
+
+  const envToObject = (entries) => {
+    const out = {};
+    for (const { line } of entries) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      let value = trimmed.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      out[trimmed.slice(0, eq).trim()] = value;
+    }
+    return out;
+  };
+
+  try {
+    const raw = readText(CONFIG_JSON);
+    if (raw) {
+      return c.json(200, JSON.parse(raw));
+    }
+    const env = envToObject(parseEnv(readText(ENV_FILE) || ''));
+    return c.json(200, env);
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+
+routerAdd('POST', '/api/rtm/config', (c) => {
+  const ENV_FILE = '/config.env';
+  const CONFIG_JSON = '/pb/pb_public/config.json';
+
+  const readText = (path) => {
+    try {
+      const bytes = $os.readFile(path);
+      let out = '';
+      for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
+      return out;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const writeText = (path, content) => {
+    try {
+      $os.writeFile(path, content, 0o644);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  };
+
+  const parseEnv = (text) => String(text).split('\n').map((line) => ({ line: line.replace(/\r$/, '') }));
+
+  const updateEnvText = (entries, updates) => {
+    const updatedKeys = Object.keys(updates);
+    let changed = false;
+
+    const result = entries.map(({ line }) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return line;
+
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) return line;
+
+      const key = trimmed.slice(0, eq).trim();
+      if (!updatedKeys.includes(key)) return line;
+
+      changed = true;
+      const value = String(updates[key]);
+      return `${key}="${value.replace(/"/g, '\\"')}"`;
+    });
+
+    return { content: result.join('\n') + '\n', changed };
+  };
+
+  try {
+    const body = c.requestInfo().body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      return c.json(400, { ok: false, error: 'expected a JSON object' });
+    }
+
+    // 1. Persist to pb_public/config.json (what nginx serves).
+    let config = {};
+    const currentRaw = readText(CONFIG_JSON);
+    if (currentRaw) {
+      try {
+        config = JSON.parse(currentRaw);
+      } catch (err) {
+        config = {};
+      }
+    }
+    Object.assign(config, body);
+    writeText(CONFIG_JSON, JSON.stringify(config, null, 2) + '\n');
+
+    // 2. Best-effort merge into config.env so the change survives restarts.
+    const envText = readText(ENV_FILE);
+    if (envText !== null) {
+      const entries = parseEnv(envText);
+      const { content } = updateEnvText(entries, config);
+      writeText(ENV_FILE, content);
+    }
+
+    return c.json(200, { ok: true, config });
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+
+// POST /api/rtm/login-by-phone
+// Phone-first login helper. PocketBase's users collection is email-keyed
+// (authWithPassword needs an email address), so this resolves a driver's phone
+// to their internal email; the frontend then calls authWithPassword(email,
+// password) exactly as before. Email is never shown to the driver. Accepts
+// email too, for backward compatibility with existing accounts.
+routerAdd('POST', '/api/rtm/login-by-phone', (c) => {
+  try {
+    const info = c.requestInfo();
+    const body = info.body || {};
+    const phone = String(body.phone || '').replace(/\D/g, '');
+    const email = String(body.email || '').trim().toLowerCase();
+
+    let users = [];
+    if (phone) {
+      users = $app.findRecordsByFilter('users', 'phone = {:phone} && role = {:role}', '', 1, 0, { phone: phone, role: 'driver' });
+    } else if (email) {
+      users = $app.findRecordsByFilter('users', 'email = {:email} && role = {:role}', '', 1, 0, { email: email, role: 'driver' });
+    } else {
+      return c.json(400, { ok: false, error: 'phone or email is required' });
+    }
+
+    if (!users.length) {
+      return c.json(404, { ok: false, error: 'no driver account found for that phone' });
+    }
+    const user = users[0];
+    return c.json(200, { ok: true, email: user.get('email'), name: user.get('name') });
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+
+// POST /api/rtm/register-driver
+// Registers a new driver account. The invite code is validated SERVER-SIDE
+// (from config.env DRIVER_INVITE_CODE) so customers cannot create ghost
+// driver records. Creates a users auth record (role=driver) plus the linked
+// drivers record. The frontend then logs in normally with authWithPassword.
+routerAdd('POST', '/api/rtm/register-driver', (c) => {
+  const ENV_FILE = '/config.env';
+
+  const readText = (path) => {
+    try {
+      const bytes = $os.readFile(path);
+      let out = '';
+      for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
+      return out;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const parseEnv = (text) => String(text).split('\n').map((line) => ({ line: line.replace(/\r$/, '') }));
+
+  const envToObject = (entries) => {
+    const out = {};
+    for (const { line } of entries) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      let value = trimmed.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      out[trimmed.slice(0, eq).trim()] = value;
+    }
+    return out;
+  };
+
+  try {
+    const info = c.requestInfo();
+    const body = info.body || {};
+    const name = String(body.name || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    const passwordIn = String(body.password || '');
+    const phone = String(body.phone || '').replace(/\D/g, '');
+    const licensePlate = String(body.license_plate || '').trim();
+    const vehicleType = String(body.vehicle_type || '').trim();
+    const inviteCode = String(body.invite_code || '').trim();
+
+    // Phone is the driver's identity. Email is optional (PocketBase's users
+    // collection still requires one, so a unique pseudo-email is derived from
+    // the phone when the driver doesn't supply one — they never type it).
+    // Password is optional: when omitted, one is generated and returned/in-app
+    // so the driver can log in with their phone immediately.
+    if (!name || !phone || !licensePlate || !inviteCode || !vehicleType) {
+      return c.json(400, {
+        ok: false,
+        error: 'name, phone, license_plate, vehicle_type and invite_code are required'
+      });
+    }
+    if (!['mototaxi', 'bus'].includes(vehicleType)) {
+      return c.json(400, { ok: false, error: 'vehicle_type must be mototaxi or bus' });
+    }
+
+    const env = envToObject(parseEnv(readText(ENV_FILE) || ''));
+    const expectedCode = env.DRIVER_INVITE_CODE || 'TracKer';
+    if (inviteCode !== expectedCode) {
+      return c.json(403, { ok: false, error: 'invalid invite code' });
+    }
+
+    const townId = env.TOWN_ID || '';
+    if (!townId) return c.json(500, { ok: false, error: 'TOWN_ID missing in config.env' });
+
+    const towns = $app.findRecordsByFilter('towns', 'town_id = {:tid}', '', 1, 0, { tid: townId });
+    if (towns.length === 0) return c.json(500, { ok: false, error: 'town not found: ' + townId });
+
+    if (email) {
+      const byEmail = $app.findRecordsByFilter('users', 'email = {:e}', '', 1, 0, { e: email });
+      if (byEmail.length > 0) return c.json(409, { ok: false, error: 'email already registered' });
+    }
+    const byPhone = $app.findRecordsByFilter('users', 'phone = {:phone} && role = {:role}', '', 1, 0, { phone: phone, role: 'driver' });
+    if (byPhone.length > 0) return c.json(409, { ok: false, error: 'phone already registered' });
+
+    let userEmail = email;
+    if (!userEmail) {
+      userEmail = phone + '@rtm.local';
+      let n = 0;
+      while ($app.findRecordsByFilter('users', 'email = {:e}', '', 1, 0, { e: userEmail }).length > 0) {
+        n++; userEmail = phone + n + '@rtm.local';
+      }
+    }
+
+    let generated = false;
+    let password = passwordIn;
+    if (!password) {
+      generated = true;
+      const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      let seed = '';
+      for (let i = 0; i < 8; i++) seed += letters.charAt(Math.floor(Math.random() * letters.length));
+      password = seed + '!';
+    }
+
+    const usersColl = $app.findCollectionByNameOrId('users');
+    const user = new Record(usersColl);
+    user.set('email', userEmail);
+    user.set('password', password);
+    user.set('passwordConfirm', password);
+    user.set('emailVisibility', false);
+    user.set('name', name);
+    user.set('role', 'driver');
+    user.set('phone', phone);
+    $app.save(user);
+
+    const driversColl = $app.findCollectionByNameOrId('drivers');
+    const driver = new Record(driversColl);
+    driver.set('town', towns[0].id);
+    driver.set('user', user.id);
+    driver.set('name', name);
+    driver.set('vehicle_type', vehicleType);
+    driver.set('license_plate', licensePlate);
+    driver.set('latitude', towns[0].get('latitude'));
+    driver.set('longitude', towns[0].get('longitude'));
+    driver.set('status', 'offline');
+    driver.set('on_duty', false);
+    $app.save(driver);
+
+    return c.json(200, {
+      ok: true,
+      driver_id: driver.id,
+      user_id: user.id,
+      email: userEmail,
+      password: generated ? password : null
+    });
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+
+// POST /api/rtm/forgot-password
+// Driver password recovery. Looks up the user by email (role=driver),
+// verifies the submitted phone against the one on file (or stores it the
+// first time), resets to a new random password and delivers it by:
+//   - WhatsApp Cloud API  when WHATSAPP_PHONE_ID and WHATSAPP_TOKEN are set
+//   - Twilio (SMS/WhatsApp) when TWILIO_SID, TWILIO_TOKEN and TWILIO_FROM are set
+//   - in-app fallback: the new password is returned in the response
+// Note: passwords are stored hashed, so the old one can never be recovered.
+routerAdd('POST', '/api/rtm/forgot-password', (c) => {
+  const ENV_FILE = '/config.env';
+
+  const readText = (path) => {
+    try {
+      const bytes = $os.readFile(path);
+      let out = '';
+      for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
+      return out;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const envToObject = (text) => {
+    const out = {};
+    for (const raw of String(text).split('\n')) {
+      const line = raw.replace(/\r$/, '').trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq <= 0) continue;
+      let value = line.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      out[line.slice(0, eq).trim()] = value;
+    }
+    return out;
+  };
+
+  // Portable base64 (goja may not provide btoa) for Twilio basic auth.
+  const b64 = (s) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let out = '';
+    let i = 0;
+    while (i < s.length) {
+      const a = s.charCodeAt(i++);
+      const b = i < s.length ? s.charCodeAt(i++) : undefined;
+      const cc = i < s.length ? s.charCodeAt(i++) : undefined;
+      out += chars.charAt(a >> 2);
+      out += chars.charAt(((a & 3) << 4) | ((b === undefined ? 0 : b) >> 4));
+      out += b === undefined ? '=' : chars.charAt(((b & 15) << 2) | ((cc === undefined ? 0 : cc) >> 6));
+      out += cc === undefined ? '=' : chars.charAt(cc & 63);
+    }
+    return out;
+  };
+
+  const genPassword = () => {
+    const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < 8; i++) {
+      out += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    return out + '!';
+  };
+
+  try {
+    const info = c.requestInfo();
+    const body = info.body || {};
+    const email = String(body.email || '').trim().toLowerCase();
+    let phone = String(body.phone || '').replace(/\D/g, '');
+
+    if (!phone && !email) {
+      return c.json(400, { ok: false, error: 'phone or email is required' });
+    }
+
+    // Identify the driver by phone (preferred) or by email (legacy).
+    let users = [];
+    if (phone) {
+      users = $app.findRecordsByFilter('users', 'phone = {:phone}', '', 1, 0, { phone: phone });
+    }
+    if (!users.length && email) {
+      users = $app.findRecordsByFilter('users', 'email = {:e}', '', 1, 0, { e: email });
+    }
+    if (!users.length) {
+      return c.json(404, { ok: false, error: 'no account found for that phone or email' });
+    }
+    const user = users[0];
+
+    // Phone must match the one on file (when supplied); otherwise use the one
+    // on file so the password can be delivered to it.
+    const onFile = String(user.get('phone') || '').replace(/\D/g, '');
+    if (phone && onFile && onFile !== phone) {
+      return c.json(403, { ok: false, error: 'phone does not match this account' });
+    }
+    phone = onFile || phone;
+    if (!phone) {
+      return c.json(400, { ok: false, error: 'a phone number is required to send the new password' });
+    }
+    user.set('phone', phone);
+
+    const newPass = genPassword();
+    user.set('password', newPass);
+    user.set('passwordConfirm', newPass);
+    $app.save(user);
+
+    const env = envToObject(readText(ENV_FILE));
+    const national = phone.slice(-10);
+    const e164 = '52' + national;
+    const msg = 'Yucatán en Vivo: tu nueva contraseña es ' + newPass;
+
+    const whatsappId = env.WHATSAPP_PHONE_ID;
+    const whatsappToken = env.WHATSAPP_TOKEN;
+    const twilioSid = env.TWILIO_SID;
+    const twilioToken = env.TWILIO_TOKEN;
+
+    if (whatsappId && whatsappToken) {
+      const res = $http.send({
+        method: 'POST',
+        url: 'https://graph.facebook.com/v20.0/' + whatsappId + '/messages',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + whatsappToken },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: '+' + e164,
+          type: 'text',
+          text: { body: msg }
+        })
+      });
+      const st = res && res.statusCode;
+      if (st >= 200 && st < 300) {
+        return c.json(200, { ok: true, delivered: 'whatsapp' });
+      }
+      return c.json(200, { ok: true, delivered: 'response', password: newPass });
+    }
+
+    if (twilioSid && twilioToken) {
+      const from = env.TWILIO_FROM || 'whatsapp:+14155238886';
+      const to = from.indexOf('whatsapp:') === 0 ? 'whatsapp:+' + e164 : '+' + e164;
+      const bodyStr = 'From=' + encodeURIComponent(from) +
+        '&To=' + encodeURIComponent(to) +
+        '&Body=' + encodeURIComponent(msg);
+      const res = $http.send({
+        method: 'POST',
+        url: 'https://api.twilio.com/2010-04-01/Accounts/' + twilioSid + '/Messages.json',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + b64(twilioSid + ':' + twilioToken)
+        },
+        body: bodyStr
+      });
+      const st = res && res.statusCode;
+      if (st >= 200 && st < 300) {
+        return c.json(200, { ok: true, delivered: 'twilio' });
+      }
+      return c.json(200, { ok: true, delivered: 'response', password: newPass });
+    }
+
+    // No messaging provider configured: deliver the new password in-app.
+    return c.json(200, { ok: true, delivered: 'response', password: newPass });
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+
+// ============================================================
+// Admin: manual driver password reset.
+// Token-gated via x-admin-token == config.env ADMIN_RESET_TOKEN.
+// (Helpers are duplicated per handler because PB JSVM does not share
+//  top-level globals across routerAdd closures.)
+// ============================================================
+
+// GET /api/rtm/admin-list-drivers
+routerAdd('GET', '/api/rtm/admin-list-drivers', (c) => {
+  const ENV_FILE = '/config.env';
+  const readText = (path) => {
+    try { const b = $os.readFile(path); let o = ''; for (let i = 0; i < b.length; i++) o += String.fromCharCode(b[i]); return o; } catch (e) { return null; }
+  };
+  const envToObject = (text) => {
+    const out = {};
+    for (const raw of String(text).split('\n')) {
+      const line = raw.replace(/\r$/, '').trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq <= 0) continue;
+      let v = line.slice(eq + 1).trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+      out[line.slice(0, eq).trim()] = v;
+    }
+    return out;
+  };
+  try {
+    const info = c.requestInfo();
+    const token = info.headers && info.headers['x-admin-token'];
+    const env = envToObject(readText(ENV_FILE) || '');
+    if (!token || !env.ADMIN_RESET_TOKEN || token !== env.ADMIN_RESET_TOKEN) {
+      return c.json(403, { ok: false, error: 'forbidden' });
+    }
+    const drivers = $app.findRecordsByFilter('drivers', '', 'created-', 50, 0);
+    const out = [];
+    for (const d of drivers) {
+      let email = '', name = '', phone = '';
+      try {
+        const uid = d.get('user');
+        const userId = (uid && typeof uid === 'object') ? uid.id : String(uid);
+        const u = $app.findRecordById('users', userId);
+        email = u.get('email'); name = u.get('name'); phone = u.get('phone');
+      } catch (e) { /* driver has no linked user */ }
+      out.push({
+        id: d.id,
+        name: d.get('name'),
+        email: email,
+        phone: phone,
+        vehicle_type: d.get('vehicle_type'),
+        status: d.get('status'),
+        on_duty: d.get('on_duty')
+      });
+    }
+    return c.json(200, { ok: true, drivers: out });
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+
+// POST /api/rtm/admin-reset-password
+// Body: { driver_id | email | phone, password? }
+// Sets the password on the linked users auth record (PB hashes on save).
+routerAdd('POST', '/api/rtm/admin-reset-password', (c) => {
+  const ENV_FILE = '/config.env';
+  const readText = (path) => {
+    try { const b = $os.readFile(path); let o = ''; for (let i = 0; i < b.length; i++) o += String.fromCharCode(b[i]); return o; } catch (e) { return null; }
+  };
+  const envToObject = (text) => {
+    const out = {};
+    for (const raw of String(text).split('\n')) {
+      const line = raw.replace(/\r$/, '').trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq <= 0) continue;
+      let v = line.slice(eq + 1).trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+      out[line.slice(0, eq).trim()] = v;
+    }
+    return out;
+  };
+  const genPassword = () => {
+    const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let o = '';
+    for (let i = 0; i < 8; i++) o += letters.charAt(Math.floor(Math.random() * letters.length));
+    return o + '!';
+  };
+  try {
+    const info = c.requestInfo();
+    const token = info.headers && info.headers['x-admin-token'];
+    const body = info.body || {};
+    const env = envToObject(readText(ENV_FILE) || '');
+    if (!token || !env.ADMIN_RESET_TOKEN || token !== env.ADMIN_RESET_TOKEN) {
+      return c.json(403, { ok: false, error: 'forbidden' });
+    }
+    let user = null;
+    if (body.driver_id) {
+      const d = $app.findRecordById('drivers', String(body.driver_id));
+      const uid = d.get('user');
+      const userId = (uid && typeof uid === 'object') ? uid.id : String(uid);
+      user = $app.findRecordById('users', userId);
+    } else if (body.email) {
+      const found = $app.findRecordsByFilter('users', 'email = {:e}', '', 1, 0, { e: String(body.email).trim().toLowerCase() });
+      user = found[0];
+    } else if (body.phone) {
+      const found = $app.findRecordsByFilter('users', 'phone = {:p}', '', 1, 0, { p: String(body.phone || '').replace(/\D/g, '') });
+      user = found[0];
+    } else {
+      return c.json(400, { ok: false, error: 'driver_id, email or phone is required' });
+    }
+    if (!user) return c.json(404, { ok: false, error: 'no user account found' });
+    const p = body.password ? String(body.password) : genPassword();
+    user.set('password', p);
+    user.set('passwordConfirm', p);
+    $app.save(user);
+    return c.json(200, { ok: true, email: user.get('email'), name: user.get('name'), phone: user.get('phone'), password: p });
+  } catch (err) {
+    return c.json(500, { ok: false, error: String(err) });
+  }
+});
+

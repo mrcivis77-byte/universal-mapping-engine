@@ -1,0 +1,240 @@
+# Default server: SPA with the base config (localhost, direct IP, unknown hosts)
+server {
+    listen 80 default_server;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    location = /config.json {
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+
+    location /socket.io/ {
+        proxy_pass http://192.168.1.75:8444/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+
+    location /mototaxi {
+        try_files $uri $uri/ /index.html;
+    }
+
+    include /etc/nginx/conf.d/rtm-snippet;
+}
+
+# Landing portal with links to all apps
+server {
+    listen 80;
+    server_name yucatanmx.com www.yucatanmx.com;
+    root /usr/share/nginx/html;
+    index landing/index.html;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    location = /config.json {
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+
+    location = /manifest.json {
+        alias /usr/share/nginx/html/manifest.json;
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+
+    location /socket.io/ {
+        proxy_pass http://192.168.1.75:8444/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+
+    location /mototaxi {
+        try_files $uri $uri/ /index.html;
+    }
+
+    include /etc/nginx/conf.d/rtm-snippet;
+}
+
+# Bus app
+server {
+    listen 80;
+    server_name bus.yucatanmx.com;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    location = /config.json {
+        alias /usr/share/nginx/html/config.bus.json;
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+    location = /manifest.json {
+        alias /usr/share/nginx/html/manifest-bus.json;
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+
+    location /socket.io/ {
+        proxy_pass http://192.168.1.75:8444/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+
+    location /mototaxi {
+        try_files $uri $uri/ /index.html;
+    }
+
+    include /etc/nginx/conf.d/rtm-snippet;
+}
+
+# Mototaxi app
+server {
+    listen 80;
+    server_name moto.yucatanmx.com;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    location = /config.json {
+        alias /usr/share/nginx/html/config.moto.json;
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+
+    # Mototaxi branding: this app is its own brand, so it gets its own
+    # manifest, favicon and home-screen icon instead of the bus ones.
+    location = /manifest.json {
+        alias /usr/share/nginx/html/manifest-moto.json;
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+    location = /images/favicon-32x32.png {
+        alias /usr/share/nginx/html/images/mototaxi-favicon-32.png;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location = /images/favicon-16x16.png {
+        alias /usr/share/nginx/html/images/mototaxi-favicon-16.png;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location = /images/apple-touch-icon.png {
+        alias /usr/share/nginx/html/images/mototaxi-apple-touch-icon.png;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location = /images/app-icon-192.png {
+        alias /usr/share/nginx/html/images/mototaxi-icon-192.png;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location = /images/app-icon-512.png {
+        alias /usr/share/nginx/html/images/mototaxi-icon-512.png;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /socket.io/ {
+        proxy_pass http://192.168.1.75:8444/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+
+    location /mototaxi {
+        try_files $uri $uri/ /index.html;
+    }
+
+    include /etc/nginx/conf.d/rtm-snippet;
+}
+
+# Fishing app
+server {
+    listen 80;
+    server_name fishing.yucatanmx.com;
+    root /usr/share/nginx/html/fish;
+    index index.html;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    location = /config.json {
+        alias /usr/share/nginx/html/config.fishing.json;
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+
+    location /socket.io/ {
+        proxy_pass http://192.168.1.75:8444/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+
+    location /mototaxi {
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+        try_files $uri $uri/ /index.html;
+    }
+
+    include /etc/nginx/conf.d/rtm-snippet;
+}
+
+# Amusement park map
+server {
+    listen 80;
+    server_name parque.yucatanmx.com;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    location = /config.json {
+        alias /usr/share/nginx/html/config.parque.json;
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+    location = /manifest.json {
+        alias /usr/share/nginx/html/manifest-parque.json;
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+
+
+    location /socket.io/ {
+        proxy_pass http://192.168.1.75:8444/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+
+    location /mototaxi {
+        try_files $uri $uri/ /index.html;
+    }
+
+    include /etc/nginx/conf.d/rtm-snippet;
+}

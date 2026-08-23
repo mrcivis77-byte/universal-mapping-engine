@@ -1,0 +1,80 @@
+/* ============================================================
+   MotoTaxi — Mayan Theme Stylesheet
+   ============================================================ */
+
+:root {
+  /* Mayan palette */
+  --bg: #0b1f1a;                /* deep jungle green */
+  --panel: rgba(255,252,245,0.97);
+  --text: #1f2937;
+  --muted: #6b7280;
+  --jade: #1f9d8a;              /* mayan turquoise/jade */
+  --jade-dark: #0f7a6b;
+  --jade-soft: #4fd1c0;
+  --stone: #d9c9a3;             /* temple limestone */
+  --earth: #c1440e;             /* mayan red-orange */
+  --gold: #e0a82e;              /* mayan gold */
+  --driver: #c1440e;            /* earth red for drivers */
+  --customer: #1f9d8a;          /* jade for customers */
+}
+
+/* Marker icon hover effects */
+.mt-driver-icon,
+.mt-customer-icon,
+.mt-me-icon,
+.mt-offduty-icon {
+  transition: transform 0.2s ease;
+}
+.mt-driver-icon:hover,
+.mt-customer-icon:hover,
+.mt-me-icon:hover,
+.mt-offduty-icon:hover {
+  transform: scale(1.1);
+}
+
+/* Leaflet popup styling */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  border: 2px solid var(--gold);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.leaflet-popup-content {
+  font-family: 'Inter', -apple-system, Arial, sans-serif;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin: 10px 14px;
+}
+.leaflet-popup-tip {
+  border-top-color: var(--gold) !important;
+  border-bottom-color: var(--gold) !important;
+}
+
+/* Leaflet controls */
+.leaflet-control-zoom a {
+  border-radius: 8px !important;
+  border: 2px solid var(--gold) !important;
+  color: var(--text) !important;
+  background: var(--panel) !important;
+  font-weight: 700;
+}
+.leaflet-control-zoom a:hover {
+  background: var(--stone) !important;
+}
+
+/* Coffee link styling */
+.coffee-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  opacity: 0.75;
+  transition: opacity 0.2s ease;
+}
+.coffee-link:hover {
+  opacity: 1;
+}
+.coffee-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: block;
+}

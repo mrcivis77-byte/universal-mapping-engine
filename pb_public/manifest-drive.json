@@ -1,0 +1,23 @@
+{
+  "name": "Yucatán en Vivo · Drive",
+  "short_name": "Drive",
+  "description": "Taxis y autos de transporte privado en tiempo real · Merida, Yucatan",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    {
+      "src": "/images/drive-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/drive-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

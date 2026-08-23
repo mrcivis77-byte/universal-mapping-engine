@@ -1,0 +1,63 @@
+{
+  "app": {
+    "title": "Transporte Comunitario",
+    "passenger_mode": "Modo Pasajero",
+    "driver_mode": "Modo Conductor",
+    "loading": "K'áabox'...",
+    "error": "U uojil ts'o'ok"
+  },
+  "map": {
+    "center": "Centrar in wochoj",
+    "zoom_in": "K'áa' ka'an",
+    "zoom_out": "Tàan ka'an",
+    "layers": "Capas mapa"
+  },
+  "transit": {
+    "find_driver": "Káajaj conductor yaan",
+    "request_ride": "Solicitar viaje",
+    "cancel_request": "Cancelar solicitud",
+    "driver_arriving": "Conductor llegando in {{time}} minutos",
+    "driver_location": "Conductor está a {{distance}}",
+    "no_drivers": "Ma' conductores ka'",
+    "searching": "Káajaj conductores..."
+  },
+  "fishing": {
+    "track_vessels": "Rastrear embarcaciones",
+    "vessel_location": "Ubicación embarcación",
+    "last_seen": "Visto último: {{time}}",
+    "no_vessels": "Ma' embarcaciones rastreando"
+  },
+  "travel": {
+    "discover_gems": "Descubrir tesoros ocultos",
+    "add_gem": "Agregar tesoro oculto",
+    "nearby_attractions": "Atracciones cercanas",
+    "proximity_alert": "Tàan yaan {{attraction}}!",
+    "hidden_gem_title": "Título tesoro oculto",
+    "hidden_gem_desc": "Describe este tesoro oculto",
+    "submit_gem": "Enviar tesoro",
+    "gems_btn": "Tesoro'ob",
+    "attractions_btn": "Atracciones",
+    "gem_added": "¡Tesoro oculto agregado con éxito!",
+    "gem_error": "Ma' tàal. Ts'a t'u'ub."
+  },
+  "status": {
+    "connected": "Conectado",
+    "disconnected": "Desconectado"
+  },
+  "welcome": {
+    "banner_title": "Bienvenido a {{town}}!",
+    "banner_message": "{{message}}",
+    "close": "T'àak"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "submit": "Enviar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "loading": "K'áabox'...",
+    "success": "Éxito",
+    "error": "U uojil",
+    "retry": "Reintentar"
+  }
+}
