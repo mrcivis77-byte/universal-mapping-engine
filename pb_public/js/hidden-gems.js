@@ -40,6 +40,10 @@ class HiddenGemsManager {
         // Load existing gems from database
         await this.loadGems();
 
+        // Replay any gems queued while offline + watch connectivity
+        this.flushQueue();
+        this.bindNetworkFlush();
+
         // Subscribe to real-time updates
         if (this.realtimeManager) {
             await this.subscribeToUpdates();
@@ -67,8 +71,8 @@ class HiddenGemsManager {
     async loadGems() {
         try {
             if (this.realtimeManager && this.realtimeManager.isConnected()) {
-                const townId = window.APP_CONFIG?.TOWN_ID;
-                const options = {};
+                    const townId = window.APP_CONFIG && window.APP_CONFIG.TOWN_ID;
+                    const options = {};
                 if (townId) options.filter = `town.town_id = "${townId}"`;
 
                 const gems = await this.realtimeManager.getRecords('hidden_gems', options);
@@ -151,6 +155,7 @@ class HiddenGemsManager {
                 description: gem.description,
                 image: gem.image ? this.gemImageUrl(gem) : null,
                 rarity: gem.rarity || 'common',
+                category: gem.category || '',
                 author: gem.author || 'Anonymous'
             }
         );
@@ -233,6 +238,18 @@ class HiddenGemsManager {
                     </div>
                     
                     <div class="form-group">
+                        <label data-i18n="travel.category">Categoría</label>
+                        <div id="gem-cat-chips" style="display:flex;flex-wrap:wrap;gap:6px">
+                            <button type="button" data-cat="nature" style="padding:7px 12px;border:2px solid #22c55e;border-radius:999px;background:#f0fdf4;font-size:13px;font-weight:600">🌳 Nature</button>
+                            <button type="button" data-cat="culture" style="padding:7px 12px;border:2px solid transparent;border-radius:999px;background:#fff;font-size:13px">🏛️ Culture</button>
+                            <button type="button" data-cat="adventure" style="padding:7px 12px;border:2px solid transparent;border-radius:999px;background:#fff;font-size:13px">🧭 Adventure</button>
+                            <button type="button" data-cat="relaxation" style="padding:7px 12px;border:2px solid transparent;border-radius:999px;background:#fff;font-size:13px">🏖️ Relax</button>
+                            <button type="button" data-cat="food" style="padding:7px 12px;border:2px solid transparent;border-radius:999px;background:#fff;font-size:13px">🍽️ Food</button>
+                        </div>
+                        <input type="hidden" id="gem-category" name="category" value="nature">
+                    </div>
+
+                    <div class="form-group" style="display:none">
                         <label for="gem-rarity">Rarity</label>
                         <select id="gem-rarity" name="rarity">
                             <option value="common">Common 💎</option>
@@ -284,6 +301,20 @@ class HiddenGemsManager {
         });
 
         // Image preview
+        // Category chip selection
+        const catInput = modal.querySelector('#gem-category');
+        if (catInput) {
+            modal.querySelectorAll('#gem-cat-chips button').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    modal.querySelectorAll('#gem-cat-chips button').forEach((b) => {
+                        b.style.border = '2px solid transparent'; b.style.background = '#fff';
+                    });
+                    btn.style.border = '2px solid #22c55e'; btn.style.background = '#f0fdf4';
+                    catInput.value = btn.getAttribute('data-cat');
+                });
+            });
+        }
+
         imageInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -306,6 +337,56 @@ class HiddenGemsManager {
      * Open gem form at specific location
      */
     openGemForm(latlng) {
+        const modal = document.getElementById('gem-form-modal');
+        if (!modal) return;
+        if (latlng && latlng.lat) { this.doOpenGemForm(latlng); return; }
+
+        // Location chooser: current GPS position OR tap a spot on the map.
+        let ov = document.getElementById('gem-loc-chooser');
+        if (ov) ov.remove();
+        ov = document.createElement('div');
+        ov.id = 'gem-loc-chooser';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center';
+        ov.innerHTML =
+            '<div style="background:#fff;border-radius:16px 16px 0 0;padding:18px;max-width:430px;width:100%">' +
+            '<h3 style="margin:0 0 12px;font-size:17px;color:#0f172a">' + (window.i18n ? window.i18n.t('travel.choose_loc_title') : '¿Dónde agregar este lugar?') + '</h3>' +
+            '<button class="gc-gps" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;margin-bottom:8px;font-size:14px;font-weight:600"><span style="font-size:20px">📍</span><span>' + (window.i18n ? window.i18n.t('travel.use_gps') : 'Mi ubicación actual') + '</span></button>' +
+            '<button class="gc-map" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;margin-bottom:8px;font-size:14px;font-weight:600"><span style="font-size:20px">🗺️</span><span>' + (window.i18n ? window.i18n.t('travel.pick_map') : 'Elegir en el mapa (sin estar ahí)') + '</span></button>' +
+            '<button class="gc-x" style="width:100%;padding:12px;border:none;border-radius:12px;background:#f1f5f9;color:#334155;font-weight:700;font-size:14px">' + (window.i18n ? window.i18n.t('transit.loc_close') || 'Cerrar' : 'Cerrar') + '</button></div>';
+        document.body.appendChild(ov);
+        const close = () => ov.remove();
+        ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+        ov.querySelector('.gc-x').onclick = close;
+        const map = this.map && this.map.getMap ? this.map.getMap() : null;
+        ov.querySelector('.gc-gps').onclick = () => {
+            close();
+            const done = (p) => this.doOpenGemForm({ lat: p.coords.latitude, lng: p.coords.longitude });
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(done, () => {
+                    // No GPS fix: fall back to map center so the user can still add
+                    if (map) this.doOpenGemForm(map.getCenter()); else this.notifyNoLocation();
+                }, { enableHighAccuracy: true, timeout: 12000 });
+            } else if (map) { this.doOpenGemForm(map.getCenter()); }
+        };
+        ov.querySelector('.gc-map').onclick = () => {
+            close();
+            if (!map) { this.notifyNoLocation(); return; }
+            let hint = document.createElement('div');
+            hint.style.cssText = 'position:fixed;top:calc(108px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10050;background:#0f172a;color:#fff;border-radius:10px;padding:8px 14px;font-size:13px';
+            hint.textContent = window.i18n ? window.i18n.t('travel.tap_map_hint') : 'Toca el mapa donde va el lugar';
+            document.body.appendChild(hint);
+            map.once('click', (e) => {
+                hint.remove();
+                this.doOpenGemForm(e.latlng);
+            });
+        };
+    }
+
+    notifyNoLocation() {
+        this.showNotification(window.i18n ? window.i18n.t('travel.no_loc') : 'No se pudo obtener tu ubicación', 'error');
+    }
+
+    doOpenGemForm(latlng) {
         const modal = document.getElementById('gem-form-modal');
         if (!modal) return;
 
@@ -348,7 +429,6 @@ class HiddenGemsManager {
     async submitGemForm(form) {
         try {
             const formData = new FormData(form);
-            const townId = window.APP_CONFIG?.TOWN_ID;
 
             // Build the record as a FormData object so PocketBase receives
             // the file upload natively (no separate /api/upload endpoint).
@@ -356,19 +436,45 @@ class HiddenGemsManager {
             record.append('title', formData.get('title'));
             record.append('description', formData.get('description'));
             record.append('rarity', formData.get('rarity'));
+            record.append('category', formData.get('category') || 'nature');
             record.append('latitude', parseFloat(formData.get('latitude')));
             record.append('longitude', parseFloat(formData.get('longitude')));
 
-            if (townId) record.append('town', townId);
-
-            const imageFile = formData.get('image');
+            let imageFile = formData.get('image');
+            let imageDataUrl = null;
             if (imageFile && imageFile.size > 0) {
-                record.append('image', imageFile);
+                imageFile = await this.cartoonify(imageFile);
+                record.append('image', imageFile, 'photo.jpg');
+                // Keep a data URL copy in case we need to queue this offline
+                try {
+                    imageDataUrl = await new Promise((res) => {
+                        const fr = new FileReader();
+                        fr.onload = () => res(fr.result); fr.onerror = () => res(null);
+                        fr.readAsDataURL(imageFile);
+                    });
+                } catch (e) {}
             }
 
             // Save to PocketBase
-            if (this.realtimeManager && this.realtimeManager.isConnected()) {
-                const savedGem = await this.realtimeManager.createRecord('hidden_gems', record);
+            const town = await this.resolveTownRecordId();
+            if (town) record.append('town', town);
+
+            const connected = (this.realtimeManager && this.realtimeManager.isConnected() && navigator.onLine);
+            if (!connected) {
+                this.queueGem({
+                    title: record.get('title'),
+                    description: record.get('description'),
+                    rarity: record.get('rarity') || 'common',
+                    category: record.get('category') || '',
+                    latitude: record.get('latitude'),
+                    longitude: record.get('longitude'),
+                    imageDataUrl
+                });
+                this.closeGemForm();
+                this.showNotification(window.i18n ? window.i18n.t('travel.gem_queued') : 'Sin conexión: se enviará automáticamente al volver', 'success');
+                return;
+            }
+            const savedGem = await this.realtimeManager.createRecord('hidden_gems', record);
 
                 console.log('Hidden gem saved successfully:', savedGem);
 
@@ -383,10 +489,6 @@ class HiddenGemsManager {
 
                 // Show success notification
                 this.showNotification(window.i18n ? window.i18n.t('travel.gem_added') : 'Hidden gem added successfully!', 'success');
-            } else {
-                throw new Error('Not connected to database');
-            }
-
         } catch (error) {
             console.error('Error submitting gem form:', error);
             this.showNotification(
@@ -394,6 +496,152 @@ class HiddenGemsManager {
                 'error'
             );
         }
+    }
+
+
+    /**
+     * Resolve the PB relation id for our town (TOWN_ID is a slug like
+     * "chelem_chuburna_progreso", but creates need the record id).
+     */
+    async resolveTownRecordId() {
+        if (this._townRecordId) return this._townRecordId;
+        try {
+            const base = this.realtimeManager && this.realtimeManager.config && this.realtimeManager.config.pocketbaseUrl || '';
+            const slug = window.APP_CONFIG && window.APP_CONFIG.TOWN_ID;
+            let url = base + '/api/collections/towns/records?perPage=1';
+            if (slug) url += '&filter=' + encodeURIComponent('town_id = "' + slug + '"');
+            const r = await fetch(url);
+            const j = await r.json();
+            const t = (j.items || [])[0];
+            this._townRecordId = t ? t.id : null;
+        } catch (e) { this._townRecordId = null; }
+        return this._townRecordId;
+    }
+
+    /**
+     * Cartoonify an image file: saturate + posterize + soft dark edges
+     * so real photos read like a theme-park map illustration.
+     */
+    async cartoonify(file) {
+        const loadImg = (src) => new Promise((res, rej) => {
+            const i = new Image();
+            i.onload = () => res(i); i.onerror = rej; i.src = src;
+        });
+        try {
+            const url = URL.createObjectURL(file);
+            const img = await loadImg(url);
+            const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.width * scale));
+            c.height = Math.max(1, Math.round(img.height * scale));
+            const x = c.getContext('2d');
+            x.filter = 'saturate(1.75) contrast(1.12)';
+            x.drawImage(img, 0, 0, c.width, c.height);
+            URL.revokeObjectURL(url);
+
+            // Posterize to flatten colors into a painted look
+            const d = x.getImageData(0, 0, c.width, c.height);
+            const p = d.data;
+            const LV = 7;
+            for (let i = 0; i < p.length; i += 4) {
+                p[i]     = Math.round(p[i]     / 255 * (LV - 1)) / (LV - 1) * 255;
+                p[i + 1] = Math.round(p[i + 1] / 255 * (LV - 1)) / (LV - 1) * 255;
+                p[i + 2] = Math.round(p[i + 2] / 255 * (LV - 1)) / (LV - 1) * 255;
+            }
+            x.putImageData(d, 0, 0);
+
+            // Soft ink edges
+            const e = document.createElement('canvas');
+            e.width = c.width; e.height = c.height;
+            const ex = e.getContext('2d');
+            ex.filter = 'grayscale(1) blur(1px) invert(1) contrast(2.6)';
+            ex.drawImage(c, 0, 0);
+            x.globalCompositeOperation = 'multiply';
+            x.globalAlpha = 0.32;
+            x.drawImage(e, 0, 0);
+            x.globalCompositeOperation = 'source-over';
+            x.globalAlpha = 1;
+
+            return await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.86));
+        } catch (err) {
+            console.error('cartoonify failed, keeping original:', err);
+            return file;
+        }
+    }
+
+    /**
+     * Offline queue for gems (image stored as data URL until we reconnect).
+     */
+    queueGem(payload) {
+        let q = [];
+        try { q = JSON.parse(localStorage.getItem('travel-gem-queue') || '[]'); } catch (e) {}
+        q.push(payload);
+        try { localStorage.setItem('travel-gem-queue', JSON.stringify(q)); } catch (e) {}
+        this.showNetBadge();
+    }
+
+    showNetBadge() {
+        let q = [];
+        try { q = JSON.parse(localStorage.getItem('travel-gem-queue') || '[]'); } catch (e) {}
+        let b = document.getElementById('travel-net-badge');
+        if (!b) {
+            b = document.createElement('div');
+            b.id = 'travel-net-badge';
+            b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:5200;background:#0f172a;color:#fff;border-radius:10px;padding:7px 12px;font-size:12px;display:none';
+            document.body.appendChild(b);
+        }
+        const n = q.length;
+        if (!navigator.onLine && n > 0) { b.textContent = 'Sin conexión · se enviará al volver'; b.style.display = 'block'; }
+        else if (!navigator.onLine) { b.textContent = 'Sin conexión'; b.style.display = 'block'; }
+        else if (n > 0) { b.textContent = n + ' pendiente(s) de sincronizar'; b.style.display = 'block'; setTimeout(() => this.flushQueue(), 1500); }
+        else b.style.display = 'none';
+    }
+
+    dataUrlToBlob(u) {
+        const [meta, b64] = u.split(',');
+        const mime = (meta.match(/data:([^;]+)/) || [, 'image/jpeg'])[1];
+        const bin = atob(b64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return new Blob([arr], { type: mime });
+    }
+
+    async flushQueue() {
+        if (!navigator.onLine) return;
+        let q = [];
+        try { q = JSON.parse(localStorage.getItem('travel-gem-queue') || '[]'); } catch (e) {}
+        if (!q.length) { this.showNetBadge(); return; }
+        const item = q[0];
+        try {
+            const fd = new FormData();
+            fd.append('title', item.title);
+            fd.append('description', item.description);
+            fd.append('rarity', item.rarity || 'common');
+            fd.append('category', item.category || '');
+            fd.append('latitude', String(item.latitude));
+            fd.append('longitude', String(item.longitude));
+            const town = await this.resolveTownRecordId();
+            if (town) fd.append('town', town);
+            if (item.imageDataUrl) {
+                const blob = this.dataUrlToBlob(item.imageDataUrl);
+                fd.append('image', blob, 'photo.jpg');
+            }
+            const base = this.realtimeManager && this.realtimeManager.config && this.realtimeManager.config.pocketbaseUrl || '';
+            const r = await fetch(base + '/api/collections/hidden_gems/records', { method: 'POST', body: fd });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const rec = await r.json();
+            if (!this.gems.some(g => g.id === rec.id)) { this.gems.push(rec); }
+            this.renderGem(rec);
+            q.shift();
+            try { localStorage.setItem('travel-gem-queue', JSON.stringify(q)); } catch (e) {}
+            this.flushQueue();
+        } catch (err) { this.showNetBadge(); }
+    }
+
+    bindNetworkFlush() {
+        window.addEventListener('online', () => this.flushQueue());
+        setInterval(() => this.flushQueue(), 60000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) this.flushQueue(); });
     }
 
     /**

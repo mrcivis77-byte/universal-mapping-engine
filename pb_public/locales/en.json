@@ -183,7 +183,14 @@
         "gem_added": "Hidden gem added successfully!",
         "gem_error": "Failed to add hidden gem. Please try again.",
         "restaurants_btn": "Restaurants",
-        "treasures_btn": "Treasures"
+        "treasures_btn": "Treasures",
+        "choose_loc_title": "Where to add this place?",
+        "use_gps": "My current location",
+        "pick_map": "Pick on the map (without being there)",
+        "tap_map_hint": "Tap the map where the place goes",
+        "no_loc": "Could not get your location",
+        "gem_queued": "Offline: it will be sent automatically when you're back",
+        "category": "Category"
     },
     "status": {
         "connected": "Connected",

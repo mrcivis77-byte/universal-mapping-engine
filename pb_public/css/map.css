@@ -1545,11 +1545,6 @@
     transform: scale(0.98);
 }
 
-/* Add gem button - visible only in travel apps with hidden gems enabled */
-#add-gem-btn {
-    display: none;
-}
-
 /* Sparkle animation for hidden gems */
 @keyframes sparkle {
     0% { transform: scale(1); opacity: 1; }

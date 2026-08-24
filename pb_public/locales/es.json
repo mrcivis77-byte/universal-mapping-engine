@@ -183,7 +183,14 @@
         "gem_added": "¡Tesoro oculto agregado con éxito!",
         "gem_error": "No se pudo agregar el tesoro. Inténtalo de nuevo.",
         "restaurants_btn": "Restaurantes",
-        "treasures_btn": "Tesoros"
+        "treasures_btn": "Tesoros",
+        "choose_loc_title": "¿Dónde agregar este lugar?",
+        "use_gps": "Mi ubicación actual",
+        "pick_map": "Elegir en el mapa (sin estar ahí)",
+        "tap_map_hint": "Toca el mapa donde va el lugar",
+        "no_loc": "No se pudo obtener tu ubicación",
+        "gem_queued": "Sin conexión: se enviará automáticamente al volver",
+        "category": "Categoría"
     },
     "status": {
         "connected": "Conectado",

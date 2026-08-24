@@ -122,16 +122,53 @@ class UniversalMap {
                     popupAnchor: [0, -36]
                 },
                 attraction: {
-                    iconUrl: '/images/marker-pyramid.svg',
+                    iconUrl: '/images/marker-pyramid-v2.svg',
                     iconSize: [40, 40],
                     iconAnchor: [20, 20],
                     popupAnchor: [0, -20]
                 },
                 'attraction-olmec': {
-                    iconUrl: '/images/attraction-olmec.svg',
+                    iconUrl: '/images/attraction-olmec-v2.svg',
                     iconSize: [48, 48],
-                    iconAnchor: [24, 44],
-                    popupAnchor: [0, -44]
+                    iconAnchor: [24, 40],
+                    popupAnchor: [0, -38]
+                },
+                olmec: {
+                    iconUrl: '/images/attraction-olmec-v2.svg',
+                    iconSize: [48, 48],
+                    iconAnchor: [24, 40],
+                    popupAnchor: [0, -38]
+                },
+                pyramid: {
+                    iconUrl: '/images/marker-pyramid-v2.svg',
+                    iconSize: [46, 46],
+                    iconAnchor: [23, 40],
+                    popupAnchor: [0, -38]
+                },
+                ruins: {
+                    iconUrl: '/images/marker-pyramid-v2.svg',
+                    iconSize: [46, 46],
+                    iconAnchor: [23, 40],
+                    popupAnchor: [0, -38]
+                },
+                mayan: {
+                    iconUrl: '/images/marker-pyramid-v2.svg',
+                    iconSize: [46, 46],
+                    iconAnchor: [23, 40],
+                    popupAnchor: [0, -38]
+                },
+                cenote: {
+                    iconUrl: '/images/marker-cenote.svg',
+                    iconSize: [42, 42],
+                    iconAnchor: [21, 37],
+                    popupAnchor: [0, -35]
+                },
+                church: {
+                    emoji: '\u26ea\ufe0f',
+                    color: '#f59e0b',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20],
+                    popupAnchor: [0, -18]
                 },
                 restaurant: {
                     iconUrl: '/images/marker-restaurant.svg',
@@ -410,9 +447,11 @@ class UniversalMap {
      * Add hidden gem marker with special styling
      */
     addHiddenGem(id, lat, lng, gemData) {
+        const CAT_EMOJI = { food: '🍽️', nature: '🌳', culture: '🏛️', adventure: '🧭', relaxation: '🏖️' };
+        const emoji = CAT_EMOJI[gemData.category] || '💎';
         const gemIcon = L.divIcon({
             className: 'hidden-gem-marker',
-            html: `<div class="gem-icon ${gemData.rarity || 'common'}">💎</div>`,
+            html: `<div class="gem-icon ${gemData.rarity || 'common'}">${emoji}</div>`,
             iconSize: [40, 40],
             iconAnchor: [20, 40],
             popupAnchor: [0, -40]
@@ -420,7 +459,7 @@ class UniversalMap {
 
         const popupContent = `
             <div class="gem-popup">
-                <h3>${gemData.title}</h3>
+                <h3>${emoji} ${gemData.title}</h3>
                 <p>${gemData.description}</p>
                 ${gemData.image ? `<img src="${gemData.image}" alt="${gemData.title}" style="max-width: 100%">` : ''}
                 <small>Added by ${gemData.author}</small>
