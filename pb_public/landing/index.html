@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yucatán en Vivo | Aplicaciones</title>
-    <link rel="icon" type="image/jpeg" href="/images/yucatan.jpeg" />
-    <link rel="apple-touch-icon" href="/images/yucatan.jpeg" />
-    <link rel="stylesheet" href="/landing/landing.css?v=4" />
+    <link rel="icon" type="image/png" href="/images/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/images/favicon-16x16.png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/landing/landing.css" />
 </head>
 <body>
     <main class="portal">
@@ -18,24 +19,25 @@
         <nav class="grid" aria-label="Aplicaciones">
             <a class="card" href="https://bus.yucatanmx.com">
                 <img src="/images/bus.png" alt="" />
-                <h2>Rutas de Bus</h2>
+                <h2>Community Bus</h2>
                 <p>Autobuses del transporte urbano</p>
             </a>
 
             <a class="card" href="https://moto.yucatanmx.com">
                 <img src="/images/mototaxi.png" alt="" />
-                <h2>Mototaxis</h2>
+                <h2>Moto Taxi</h2>
                 <p>Ubicación de mototaxis en tiempo real</p>
             </a>
 
             <a class="card" href="https://drive.yucatanmx.com">
-                <img src="/images/drive.png?v=2" alt="" />
+                <img src="/images/drive.png" alt="" />
                 <h2>Drive</h2>
                 <p>Taxis y autos de transporte privado</p>
             </a>
+
             <a class="card" href="https://a-usted.yucatanmx.com">
                 <img src="/images/austed.png" alt="" />
-                <h2>A-Usted</h2>
+                <h2>Express Delivery</h2>
                 <p>Entregas de restaurantes y negocios</p>
             </a>
 
@@ -54,45 +56,10 @@
 
         <footer class="footer">
             <p>Local Hosted in Chelem</p>
+            <a class="dash-link" href="/dashboard.html">● Panel en vivo</a>
+            <a class="taco-link" href="https://buymeacoffee.com/mr.c77" target="_blank" rel="noopener">Buy me a Taco 🌮</a>
         </footer>
     </main>
-
-    <!-- Info button + box -->
-    <button id="info-btn" type="button" aria-label="Info">i</button>
-
-    <div id="info-overlay" class="hidden">
-        <div id="info-box" role="dialog" aria-modal="true">
-            <button id="info-close" type="button" aria-label="Close">×</button>
-            <h2>About the apps</h2>
-            <p>Designed by Mr.C</p>
-            <p>
-                For questions and suggestions contact with
-                <a href="https://chat.whatsapp.com/C80fvUbPv6qEpxQ65oVPlO?s=cl&p=i&mlu=4" target="_blank" rel="noopener">WhatsApp group 💬</a>
-            </p>
-            <p>
-                Buy me a Taco 🌮 ·
-                <a href="https://buymeacoffee.com/mr.c77" target="_blank" rel="noopener">buymeacoffee.com/mr.c77</a>
-            </p>
-            <details>
-                <summary>Adding to Home Screen</summary>
-                <div class="info-body">
-                    <p><strong>iPhone (iOS)</strong> requires using Safari. Navigate to the desired website, tap the Share icon (square with an upward arrow) in the toolbar, scroll down, and select Add to Home Screen. You can edit the shortcut name before tapping Add to place the icon on your home screen. Note that this option is not available in third-party browsers like Chrome on iOS.</p>
-                    <p><strong>Android</strong> supports adding websites via Google Chrome or other browsers like Samsung Internet and Firefox. In Chrome, open the website, tap the three-dot menu in the top-right corner, and select Add to Home Screen (or Install app if it is a Progressive Web App). Confirm the name and tap Add to place the shortcut on your home screen. Android allows more customization and browser flexibility compared to iOS.</p>
-                </div>
-            </details>
-        </div>
-    </div>
-
-    <script>
-        (function () {
-            var btn = document.getElementById('info-btn');
-            var overlay = document.getElementById('info-overlay');
-            var close = document.getElementById('info-close');
-            if (!btn || !overlay || !close) return;
-            btn.addEventListener('click', function () { overlay.classList.remove('hidden'); });
-            close.addEventListener('click', function () { overlay.classList.add('hidden'); });
-            overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.classList.add('hidden'); });
-        })();
-    </script>
 </body>
 </html>
+

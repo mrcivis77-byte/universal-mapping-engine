@@ -69,11 +69,9 @@ cronAdd('driver-expiry', '0 3 * * *', () => {
 
 // Pending-request expiry: any ride_request left stuck in status="pending"
 // for longer than TRANSIT_MAX_WAIT_TIME (minutes) is auto-cancelled so it
-// drops off every driver's map. Expiry is HEARTBEAT-based: a waiting
-// customer's phone re-PATCHes its request (customer_lat/lng) on every GPS
-// tick, which bumps `updated`. So an actively-waiting request NEVER expires
-// no matter how long the customer waits; only requests whose phone went
-// silent for TRANSIT_MAX_WAIT_TIME minutes (tab closed/crashed) are cleaned.
+// drops off every driver's map. This clears the orphaned requests a customer
+// abandons without pressing cancel (e.g. closing the tab mid-request), which
+// previously lingered forever and showed up as phantom pickups.
 cronAdd('pending-request-expiry', '*/1 * * * *', () => {
   const readText = (path) => {
     try {
@@ -94,14 +92,10 @@ cronAdd('pending-request-expiry', '*/1 * * * *', () => {
       if (m) waitMin = parseInt(m[1], 10);
     }
     const cutoffMs = Date.now() - waitMin * 60 * 1000;
-    // NOTE: must use "YYYY-MM-DD HH:MM:SS.mmmZ" (space, not ISO "T").
-    // PocketBase does not parse the ISO T-format in filters and falls back
-    // to a string comparison where ' ' < 'T', which made EVERY pending
-    // request on the same day match as stale and get cancelled instantly.
-    const cutoff = new Date(cutoffMs).toISOString().replace('T', ' ');
+    const cutoff = new Date(cutoffMs).toISOString();
     const stale = $app.findRecordsByFilter(
       'ride_requests',
-      'status = "pending" && updated < {:cutoff}',
+      'status = "pending" && created < {:cutoff}',
       '',
       0,
       0,
@@ -128,9 +122,7 @@ cronAdd('pending-request-expiry', '*/1 * * * *', () => {
 // hides them visually, but this clears the underlying DB flag too.
 cronAdd('duty-reset', '*/1 * * * *', () => {
   try {
-    // Locked-in model: drivers stay on duty until they cancel; this long
-    // window only reaps devices that have been silent for hours.
-    const cutoff = Date.now() - 240 * 60 * 1000;
+    const cutoff = Date.now() - 3 * 60 * 1000;
     const stale = $app.findRecordsByFilter(
       'drivers',
       'on_duty = true && last_active > 0 && last_active < {:cutoff}',

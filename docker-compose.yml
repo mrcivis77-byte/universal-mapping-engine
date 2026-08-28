@@ -2,16 +2,16 @@ services:
   # PocketBase backend - real-time database and API
   backend:
     image: ghcr.io/muchobien/pocketbase:latest
-    container_name: pocketbase_backend
+    container_name: pocketbase_backend_sandbox
     restart: unless-stopped
     ports:
-      - "8090:8090"
+      - "8091:8090"
     environment:
       - TZ=America/Merida
     env_file:
       - ./config.env
     volumes:
-      - ./pb_data:/pb/pb_data
+      - ./pb_data_sandbox:/pb/pb_data
       - ./pb_public:/pb/pb_public
       - ./pb_hooks:/pb/pb_hooks
       - ./pb_migrations:/pb/pb_migrations
@@ -19,17 +19,17 @@ services:
       - ./docker/backend-entrypoint.sh:/entrypoint.sh:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     networks:
-      - app_network
+      - sandbox_network
 
   # Nginx frontend - static web server + API proxy
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nginx_frontend
+    container_name: nginx_frontend_sandbox
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8082:80"  # Sandbox uses port 8082 to avoid conflict with production
     depends_on:
       - backend
     environment:
@@ -45,12 +45,12 @@ services:
       - ./config.env:/config.env:ro
       - ./docker/nginx-entrypoint.sh:/docker-entrypoint.d/40-generate-config.sh:ro
     networks:
-      - app_network
+      - sandbox_network
 
   # Setup - one-shot: creates superuser and collections, then exits
   setup:
     image: node:20-alpine
-    container_name: pocketbase_setup
+    container_name: pocketbase_setup_sandbox
     restart: "no"
     depends_on:
       - backend
@@ -61,56 +61,56 @@ services:
       - ./scripts:/app:ro
     entrypoint: ["node", "/app/setup-pocketbase.mjs"]
     networks:
-      - app_network
+      - sandbox_network
 
   # Central registry hub - receives heartbeats, answers nearest-town queries.
   # This PC hosts yucatanmx.com, so the hub runs here behind nginx.
-  hub:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.hub
-    image: rtm_hub:local
-    container_name: rtm_hub
-    restart: unless-stopped
-    volumes:
-      - ./central-hub:/app
-    networks:
-      - app_network
+  # hub:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.hub
+  #   image: rtm_hub_sandbox:local
+  #   container_name: rtm_hub_sandbox
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./central-hub:/app
+  #   networks:
+  #     - sandbox_network
 
   # Heartbeat - announces this town to the central registry
-  heartbeat:
-    image: node:20-alpine
-    container_name: rtm_heartbeat
-    restart: unless-stopped
-    depends_on:
-      - backend
-    env_file:
-      - ./config.env
-    environment:
-      - CENTRAL_REGISTRY_URL=http://frontend
-    working_dir: /app
-    volumes:
-      - ./scripts:/app:ro
-      - ./config.env:/config.env:ro
-    entrypoint: ["node", "/app/heartbeat.js"]
-    networks:
-      - app_network
+  # heartbeat:
+  #   image: node:20-alpine
+  #   container_name: rtm_heartbeat_sandbox
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - backend
+  #   env_file:
+  #     - ./config.env
+  #   environment:
+  #     - CENTRAL_REGISTRY_URL=http://frontend
+  #   working_dir: /app
+  #   volumes:
+  #     - ./scripts:/app:ro
+  #     - ./config.env:/config.env:ro
+  #   entrypoint: ["node", "/app/heartbeat.js"]
+  #   networks:
+  #     - sandbox_network
 
   # Cloudflare tunnel (optional - disabled when token is empty)
-  tunnel:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.tunnel
-    image: rtm_tunnel:local
-    container_name: cloudflare_tunnel
-    restart: unless-stopped
-    env_file:
-      - ./config.env
-    volumes:
-      - ./config/cloudflared:/etc/cloudflared:ro
-    networks:
-      - app_network
+  # tunnel:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.tunnel
+  #   image: rtm_tunnel_sandbox:local
+  #   container_name: cloudflare_tunnel_sandbox
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ./config.env
+  #   volumes:
+  #     - ./config/cloudflared:/etc/cloudflared:ro
+  #   networks:
+  #     - sandbox_network
 
 networks:
-  app_network:
+  sandbox_network:
     driver: bridge

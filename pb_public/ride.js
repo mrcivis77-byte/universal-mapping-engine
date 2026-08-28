@@ -57,6 +57,11 @@ class RideApp {
         // Translation helper: delegates to the app-wide i18n engine.
         this.t = (key, params) => (window.i18n ? window.i18n.t(key, params) : key);
 
+        // Bidding state
+        this.bids = {}; // bidId -> bid record
+        this.currentBidId = null;
+        this.acceptedBid = null;
+
         // Driver state
         this.driverRecordId = null;
         this.driverVehicleType = null;
@@ -67,6 +72,12 @@ class RideApp {
         this.requests = {}; // requestId -> record
         this.wakeLock = null;
         this.regMethod = 'phone'; // phone-only identity (no passwords)
+
+        // First-window headline: use APP_NAME from config if present
+        const wt = document.getElementById('welcome-title');
+        if (wt && this.config && this.config.APP_NAME) {
+            wt.textContent = this.config.APP_NAME;
+        }
 
         this._onGeo = this._onGeo.bind(this);
         this._onDriver = this._onDriver.bind(this);
@@ -124,6 +135,7 @@ class RideApp {
             this._stopStaleSweep();
             this.showDriverAuth();
         }
+        this.updatePresenceIndicators();
     }
 
     /* ------------------------------------------------------------ */
@@ -136,9 +148,35 @@ class RideApp {
         this.hide('duty-toggle');
         this.hide('full-toggle');
         this.hide('info-route-section');
+        this.hide('bid-panel');
         this.show('request-btn');
+        this.updatePresenceIndicators();
         this.updateRequestButton();
+        
+        // Ensure destination label is correct for the app type
+        // This runs immediately since we need to show the right label when Customer role is clicked
+        this.ensureDestinationLabel();
+        
         await this.subscribeDrivers();
+        await this.subscribeBids();
+    }
+    
+    // Guaranteed label update - called from multiple places
+    ensureDestinationLabel() {
+        const optionalLabel = document.getElementById('dest-label-optional');
+        const requiredLabel = document.getElementById('dest-label-required');
+        if (optionalLabel && requiredLabel) {
+            // Always show the correct label based on app type
+            // isFixedRoute = true means BUS app (no destination required)
+            // isFixedRoute = false means MOTO/DRIVE app (destination required)
+            if (this.isFixedRoute) {
+                optionalLabel.classList.remove('hidden');
+                requiredLabel.classList.add('hidden');
+            } else {
+                optionalLabel.classList.add('hidden');
+                requiredLabel.classList.remove('hidden');
+            }
+        }
     }
 
     async subscribeDrivers() {
@@ -166,6 +204,7 @@ class RideApp {
                     this.updateDriverMarker(rec);
                 }
             }
+            this.updatePresenceIndicators();
         } catch (err) {
             console.warn('[ride] load drivers:', err.message);
         }
@@ -179,6 +218,7 @@ class RideApp {
     _startStaleSweep() {
         if (this._staleSweepTimer) return;
         this._staleSweepTimer = setInterval(() => {
+            let changed = false;
             for (const [id, rec] of Object.entries(this.driverRecords)) {
                 if (!this.isDriverLive(rec)) {
                     this.map.removeMarker('drv_' + id);
@@ -187,8 +227,10 @@ class RideApp {
                     if (id === this.nearestDriverId) {
                         this.handleNearestDriverGone();
                     }
+                    changed = true;
                 }
             }
+            if (changed) this.updatePresenceIndicators();
         }, this.driverStaleMs / 2);
     }
 
@@ -197,6 +239,45 @@ class RideApp {
             clearInterval(this._staleSweepTimer);
             this._staleSweepTimer = null;
         }
+    }
+
+    // Subscribe to bids for customer view
+    async subscribeBids() {
+        if (!this.rt.isConnected() || !this.ownRequestId) return;
+
+        // Subscribe to bid updates for this request
+        await this.rt.subscribe('bids', (event) => {
+            if (this.role !== 'customer') return;
+            const { action, record } = event;
+
+            if (action === 'create' && record.request === this.ownRequestId) {
+                // New bid from driver
+                this.bids[record.id] = record;
+                this.showBidList();
+            } else if (action === 'update') {
+                if (record.request === this.ownRequestId) {
+                    if (record.status === 'accepted') {
+                        this.acceptedBid = record.id;
+                        this.hide('bid-panel');
+                        this.toast(this.t('transit.bid_accepted'));
+                    } else if (record.status === 'rejected') {
+                        delete this.bids[record.id];
+                        this.showBidList();
+                    }
+                }
+            }
+        }, {
+            filter: `request = "${this.ownRequestId}"`
+        });
+    }
+
+    // Show bid list for customer
+    showBidList() {
+        const bidPanel = this.$('bid-panel');
+        if (!bidPanel) return;
+
+        bidPanel.classList.remove('hidden');
+        this.loadBidsForRequest(this.ownRequestId);
     }
 
     openRequestPanel() {
@@ -343,17 +424,14 @@ class RideApp {
             });
             this.reqError('');
         } else {
-            // Fallback: keep the typed name, pin at current location
-            const pos = this.geo.getPosition();
-            if (pos) {
-                this.dest = { lat: pos.latitude, lng: pos.longitude, name: query };
-            }
+            // Geocoding failed - show error and clear destination
+            this.reqError(this.t('transit.type_place_error'));
             const display = this.$('req-dest-display');
             if (display) {
-                display.textContent = this.t('transit.dest_prefix') + query + this.t('transit.dest_approx');
-                display.classList.remove('hidden');
+                display.classList.add('hidden');
             }
-            this.reqError('');
+            this.dest = null;
+            this.map.removeMarker('dest_pin');
         }
     }
 
@@ -390,12 +468,19 @@ class RideApp {
     }
 
     async createRequest() {
-        // Name and destination are optional; the request works without either.
-        // Fixed-route apps (bus) never carry a destination.
+        // Name is optional; destination is REQUIRED for mototaxi (drivers need it for quotes)
         const name = this.val('req-name').trim() || 'Cliente';
-        if (!this.isFixedRoute && !this.dest && this.val('req-dest').trim()) {
-            await this.typeDestination();
+        
+        // Destination is REQUIRED for mototaxi rides - drivers need to know where to quote
+        // For non-fixed-route apps, destination must be explicitly chosen (geocoded or pin drop)
+        if (!this.isFixedRoute) {
+            // Must have a destination with both coordinates AND a name
+            if (!this.dest || !this.dest.name || !this.dest.lat || !this.dest.lng) {
+                this.reqError(this.t('transit.destination_required'));
+                return;
+            }
         }
+        
         const pos = this.geo.getPosition();
         if (!pos) {
             this.reqError('Ubicación no disponible');
@@ -604,14 +689,20 @@ class RideApp {
         this.populateRouteInput();
         this.toast(this.t('transit.welcome_driver'));
         await this.subscribeRequests();
+        this.updatePresenceIndicators();
     }
 
     async loadDriverRecord() {
         const pb = this.rt.getPocketBase();
         const uid = pb.authStore.model ? pb.authStore.model.id : null;
         if (!uid) throw new Error('no session');
+        // Load THIS app's driver record only. vehicle_type is immutable and
+        // app-scoped, so filtering keeps a shared PocketBase from mixing apps:
+        // e.g. the drive app must never load the mototaxi record (and vice
+        // versa) when the same user exists across apps.
+        const typeFilter = this.vehicleTypeFilter('vehicle_type');
         try {
-            const rec = await pb.collection('drivers').getFirstListItem(`user = "${uid}"`);
+            const rec = await pb.collection('drivers').getFirstListItem(`user = "${uid}" && ${typeFilter}`);
             this.driverRecordId = rec.id;
             this.driverVehicleType = rec.vehicle_type;
             this.route = rec.route || '';
@@ -673,6 +764,7 @@ class RideApp {
             for (const rec of records) {
                 this.updateRequestMarker(rec);
             }
+            this.updatePresenceIndicators();
         } catch (err) {
             console.warn('[ride] load requests:', err.message);
         }
@@ -849,6 +941,7 @@ class RideApp {
             if (record.id === this.nearestDriverId) {
                 this.handleNearestDriverGone();
             }
+            this.updatePresenceIndicators();
             return;
         }
         if (!this.vehicleTypes.includes(record.vehicle_type)) return;
@@ -858,6 +951,7 @@ class RideApp {
             if (record.id === this.nearestDriverId) {
                 this.handleNearestDriverGone();
             }
+            this.updatePresenceIndicators();
             return;
         }
         this.updateDriverMarker(record);
@@ -883,9 +977,11 @@ class RideApp {
                 </div>
             `
         });
+        this.updatePresenceIndicators();
     }
 
     detectPickup(record) {
+        // Track driver positions and nearest driver for pickup detection
         if (!this.ownRequestId) return;
         const pos = this.geo.getPosition();
         if (!pos) return;
@@ -897,10 +993,8 @@ class RideApp {
             this.nearestDriverId = record.id;
         }
 
-        // A request is only auto-closed when the customer is actually RIDING
-        // WITH the driver: both moving, close together, heading the same way,
-        // and this condition holding across consecutive updates (~10s) so a
-        // vehicle merely passing by doesn't close the request.
+        // Track if customer and driver are together for pickup confirmation
+        // but don't auto-complete - driver must explicitly complete the ride
         const riderSpeed = pos.speed || 0;
         const driverSpeed = record.speed || 0;
         const movingTogether = dist < this.pickupDistance &&
@@ -909,15 +1003,103 @@ class RideApp {
             this.sameHeading(pos.heading, record.heading);
 
         this.rideStreak[record.id] = movingTogether ? (this.rideStreak[record.id] || 0) + 1 : 0;
-        if (this.rideStreak[record.id] >= 2) {
-            this.completeOwnRequest();
-        }
+        // Do NOT auto-complete here - driver must complete manually
     }
 
     sameHeading(a, b) {
         if (a == null || b == null) return true;
         const diff = Math.abs(a - b) % 360;
         return Math.min(diff, 360 - diff) <= 60;
+    }
+
+    updatePresenceIndicators() {
+        const driversIndicator = document.getElementById('drivers-indicator');
+        const clientsIndicator = document.getElementById('clients-indicator');
+        const driversCount = document.getElementById('drivers-count');
+        const clientsCount = document.getElementById('clients-count');
+
+        console.log('[Presence] Updating indicators:', {
+            driversIndicator: !!driversIndicator,
+            clientsIndicator: !!clientsIndicator,
+            driversCount: !!driversCount,
+            clientsCount: !!clientsCount,
+            role: this.role,
+            activeDrivers: Object.keys(this.driverRecords).length,
+            activeClients: Object.keys(this.requests).length
+        });
+
+        if (!driversIndicator || !clientsIndicator || !driversCount || !clientsCount) {
+            console.log('[Presence] Missing DOM elements');
+            return;
+        }
+
+        // Determine visibility based on role
+        if (this.role === 'customer') {
+            // Clients see drivers on map
+            driversIndicator.style.display = 'inline-flex';
+            clientsIndicator.style.display = 'none'; // clients don't need to see other clients
+            // Ensure destination label is correct for customer role
+            this.ensureDestinationLabel();
+        } else if (this.role === 'driver') {
+            // Drivers see clients on map
+            driversIndicator.style.display = 'none'; // drivers don't need to see other drivers
+            clientsIndicator.style.display = 'inline-flex';
+        } else {
+            // No role selected yet, show both
+            driversIndicator.style.display = 'inline-flex';
+            clientsIndicator.style.display = 'inline-flex';
+        }
+
+        // Count active drivers on map
+        const activeDrivers = Object.keys(this.driverRecords).length;
+        driversCount.textContent = String(activeDrivers);
+
+        // Count active clients/requests on map
+        const activeClients = Object.keys(this.requests).length;
+        clientsCount.textContent = String(activeClients);
+
+        // Update driver indicator state (color based on activity)
+        if (activeDrivers > 0) {
+            driversIndicator.style.background = 'rgba(16, 185, 129, 0.1)';
+            driversIndicator.style.borderColor = '#10b981';
+            driversIndicator.style.color = '#10b981';
+            // Set vehicle icon based on vehicle type
+            const vehicleIcon = this.getVehicleIcon();
+            const currentText = driversIndicator.innerHTML;
+            const newIcon = vehicleIcon;
+            driversIndicator.innerHTML = currentText.replace(/^[🚗🛺🚌🏍️]/, newIcon);
+        } else {
+            driversIndicator.style.background = 'rgba(239, 68, 68, 0.1)';
+            driversIndicator.style.borderColor = '#ef4444';
+            driversIndicator.style.color = '#ef4444';
+            // Set default vehicle icon even when inactive
+            const vehicleIcon = this.getVehicleIcon();
+            const currentText = driversIndicator.innerHTML;
+            const newIcon = vehicleIcon;
+            driversIndicator.innerHTML = currentText.replace(/^[🚗🛺🚌🏍️]/, newIcon);
+        }
+
+        // Update client indicator state
+        if (activeClients > 0) {
+            clientsIndicator.style.background = 'rgba(16, 185, 129, 0.1)';
+            clientsIndicator.style.borderColor = '#10b981';
+            clientsIndicator.style.color = '#10b981';
+        } else {
+            clientsIndicator.style.background = 'rgba(239, 68, 68, 0.1)';
+            clientsIndicator.style.borderColor = '#ef4444';
+            clientsIndicator.style.color = '#ef4444';
+        }
+        
+        console.log('[Presence] Indicators updated successfully');
+    }
+
+    getVehicleIcon() {
+        // Return appropriate icon based on vehicle type
+        if (this.vehicleTypes.includes('bus')) return '🚌';
+        if (this.vehicleTypes.includes('mototaxi')) return '🛺';
+        if (this.vehicleTypes.includes('drive')) return '🚗';
+        if (this.vehicleTypes.includes('moto')) return '🏍️';
+        return '🚗'; // default
     }
 
     _onRequest(event) {
@@ -927,6 +1109,7 @@ class RideApp {
         if (action === 'delete') {
             this.removeRequestMarkers(record.id);
             delete this.requests[record.id];
+            this.updatePresenceIndicators();
             return;
         }
         if (record.status === 'pending') {
@@ -934,6 +1117,7 @@ class RideApp {
         } else {
             this.removeRequestMarkers(record.id);
             delete this.requests[record.id];
+            this.updatePresenceIndicators();
         }
     }
 
@@ -945,6 +1129,26 @@ class RideApp {
 
     updateRequestMarker(record) {
         this.requests[record.id] = record;
+        
+        // For non-fixed-route apps, ensure destination exists
+        // Auto-cancel requests without destination
+        if (!this.isFixedRoute && (!record.dest_lat || !record.dest_lng)) {
+            // Request has no destination - auto-cancel it
+            this.cancelMissingDestinationRequest(record.id);
+            return;
+        }
+        
+        // Build destination display string
+        let destDisplay = '';
+        if (record.destination) {
+            destDisplay = record.destination;
+        } else if (record.dest_lat && record.dest_lng) {
+            // Show coordinates if no name
+            destDisplay = `${record.dest_lat.toFixed(4)}, ${record.dest_lng.toFixed(4)}`;
+        } else {
+            destDisplay = this.t('transit.map_pin');
+        }
+        
         // Person icon = where the customer is now.
         this.map.updateMarker('req_' + record.id, record.customer_lat, record.customer_lng, {
             appType: 'transit',
@@ -952,7 +1156,7 @@ class RideApp {
             popupContent: `
                 <div class="request-popup">
                     <h3>${record.customer_name}</h3>
-                    <p>${this.t('transit.dest_prefix')}${record.destination || this.t('transit.map_pin')}</p>
+                    <p>${this.t('transit.dest_prefix')}${destDisplay}</p>
                 </div>
             `
         });
@@ -966,12 +1170,271 @@ class RideApp {
                 popupContent: `
                     <div class="request-popup">
                         <h3>${record.customer_name}</h3>
-                        <p>${this.t('transit.dest_prefix')}${record.destination || this.t('transit.map_pin')}</p>
+                        <p>${this.t('transit.dest_prefix')}${destDisplay}</p>
                     </div>
                 `
             });
         } else {
             this.map.removeMarker('reqdest_' + record.id);
+        }
+        this.updatePresenceIndicators();
+    }
+    
+    // Cancel requests that lack destination (for non-fixed-route apps)
+    async cancelMissingDestinationRequest(requestId) {
+        // Remove the request marker
+        this.map.removeMarker('req_' + requestId);
+        this.map.removeMarker('reqdest_' + requestId);
+        delete this.requests[requestId];
+        this.updatePresenceIndicators();
+        
+        // Try to cancel on the server (if still pending)
+        try {
+            if (this.rt && this.rt.isConnected()) {
+                await this.rt.updateRecord('ride_requests', requestId, { status: 'cancelled' });
+            }
+        } catch (err) {
+            // Silently fail - request may already be gone
+        }
+    }
+
+    /* ------------------------------------------------------------ */
+    /* Pricing Calculator                                            */
+    /* ------------------------------------------------------------ */
+
+    // Calculate estimated price based on distance and time
+    // Formula: 1 peso/km + maintenance cost + license fee + time buffer
+    calculatePrice(distanceKm, estimatedTimeMinutes) {
+        // Base fare: 1 peso per km
+        const distancePrice = distanceKm * 1;
+        
+        // Maintenance cost (30 pesos per ride as buffer)
+        const maintenanceCost = 30;
+        
+        // License fee (10 pesos per ride)
+        const licenseFee = 10;
+        
+        // Time buffer (2 pesos per minute, minimum 5 pesos)
+        const timeBuffer = Math.max(5, estimatedTimeMinutes * 2);
+        
+        const total = Math.round(distancePrice + maintenanceCost + licenseFee + timeBuffer);
+        
+        return {
+            distancePrice: Math.round(distancePrice),
+            maintenanceCost,
+            licenseFee,
+            timeBuffer: Math.round(timeBuffer),
+            total
+        };
+    }
+
+    // Calculate estimated time based on distance
+    estimateTime(distanceKm, speedKmh = 30) {
+        // Average speed of 30 km/h for mototaxi
+        const hours = distanceKm / speedKmh;
+        const minutes = Math.round(hours * 60);
+        return minutes;
+    }
+
+    /* ------------------------------------------------------------ */
+    /* Bidding System                                                */
+    /* ------------------------------------------------------------ */
+
+    // Customer: submit a bid for their ride request
+    async submitBid(estimatedPrice, estimatedTime) {
+        if (!this.ownRequestId) return;
+        try {
+            const bidData = {
+                town: await this.resolveTown(),
+                driver: null, // Will be set when driver accepts
+                request: this.ownRequestId,
+                pickup_lat: this.geo.getPosition().latitude,
+                pickup_lng: this.geo.getPosition().longitude,
+                dest_lat: this.dest?.lat || null,
+                dest_lng: this.dest?.lng || null,
+                destination: this.dest?.name || null,
+                estimated_price: estimatedPrice,
+                estimated_time: estimatedTime,
+                status: 'pending',
+                created_at: new Date().toISOString()
+            };
+            const bid = await this.rt.createRecord('bids', bidData);
+            this.currentBidId = bid.id;
+            this.bids[bid.id] = bid;
+            this.toast(this.t('transit.bid_submitted'));
+            this.updateBiddingUI();
+        } catch (err) {
+            console.error('[ride] submit bid failed:', err);
+            this.toast(this.t('transit.bid_failed'));
+        }
+    }
+
+    // Customer: accept a bid
+    async acceptBid(bidId) {
+        try {
+            const bid = this.bids[bidId];
+            if (!bid) return;
+
+            // Update bid status to accepted
+            await this.rt.updateRecord('bids', bidId, { status: 'accepted' });
+            this.acceptedBid = bidId;
+
+            // Update the ride request to link to this bid
+            await this.rt.updateRecord('ride_requests', this.ownRequestId, {
+                status: 'assigned',
+                winning_bid: bidId
+            });
+
+            // Notify other drivers to remove their bids
+            const pb = this.rt.getPocketBase();
+            const existingBids = await pb.collection('bids').getFullList({
+                filter: `request = "${this.ownRequestId}" && id != "${bidId}"`
+            });
+            for (const b of existingBids) {
+                await pb.collection('bids').update(b.id, { status: 'rejected' });
+            }
+
+            this.toast(this.t('transit.bid_accepted'));
+            this.hide('bid-panel');
+            this.show('request-status');
+        } catch (err) {
+            console.error('[ride] accept bid failed:', err);
+            this.toast(this.t('transit.bid_accept_failed'));
+        }
+    }
+
+    // Driver: get pending requests for bidding
+    async getPendingBids() {
+        try {
+            const typeFilter = this.vehicleTypeFilter('vehicle_type');
+            const records = await this.rt.getRecords('bids', {
+                perPage: 50,
+                filter: `status = 'pending' && town.town_id = "${this.config.TOWN_ID}" && request.town.${typeFilter}`
+            });
+            return records;
+        } catch (err) {
+            console.warn('[ride] get bids:', err.message);
+            return [];
+        }
+    }
+
+    // Driver: accept a bid
+    async driverAcceptBid(bidId) {
+        try {
+            const pb = this.rt.getPocketBase();
+            const bid = await pb.collection('bids').getOne(bidId);
+
+            // Update driver status to busy
+            await pb.collection('drivers').update(this.driverRecordId, {
+                status: 'busy',
+                on_duty: true
+            });
+
+            // Link driver to bid
+            await pb.collection('bids').update(bidId, {
+                driver: this.driverRecordId,
+                status: 'accepted'
+            });
+
+            // Update ride request
+            await pb.collection('ride_requests').update(bid.request, {
+                status: 'assigned',
+                winning_bid: bidId
+            });
+
+            this.toast(this.t('transit.bid_driver_accepted'));
+            return true;
+        } catch (err) {
+            console.error('[ride] driver accept bid failed:', err);
+            this.toast(this.t('transit.bid_failed'));
+            return false;
+        }
+    }
+
+    // Driver: reject a bid
+    async driverRejectBid(bidId) {
+        try {
+            await this.rt.updateRecord('bids', bidId, { status: 'rejected' });
+            this.toast(this.t('transit.bid_rejected'));
+        } catch (err) {
+            console.warn('[ride] reject bid:', err.message);
+        }
+    }
+
+    // Update UI for bidding (client-side)
+    updateBiddingUI() {
+        const bidPanel = this.$('bid-panel');
+        const bidStatus = this.$('bid-status');
+
+        if (!bidPanel || !bidStatus) return;
+
+        if (this.currentBidId) {
+            bidStatus.textContent = this.t('transit.bid_status_pending');
+            bidStatus.classList.remove('hidden');
+        } else {
+            bidStatus.classList.add('hidden');
+        }
+    }
+
+    // Load and display bids for customer
+    async loadBidsForRequest(requestId) {
+        try {
+            const pb = this.rt.getPocketBase();
+            const bids = await pb.collection('bids').getFullList({
+                filter: `request = "${requestId}" && status = 'pending'`
+            });
+
+            const bidListEl = this.$('bid-list');
+            if (!bidListEl) return;
+
+            bidListEl.innerHTML = '';
+            for (const bid of bids) {
+                // Get driver name and photo
+                let driverName = 'Driver';
+                let driverAvatar = '';
+                if (bid.driver) {
+                    const driverId = typeof bid.driver === 'object' ? bid.driver.id : bid.driver;
+                    try {
+                        const driverRec = await pb.collection('drivers').getOne(driverId);
+                        driverName = driverRec.name || 'Driver';
+                        if (driverRec.avatar) {
+                            driverAvatar = `<img src="${pb.collection('drivers').getAvatar(driverRec.id, driverRec.avatar)}" class="bid-avatar" alt="${driverName}">`;
+                        }
+                    } catch (e) {
+                        console.warn('Could not load driver info:', e);
+                    }
+                }
+                
+                // Format creation time
+                const createdTime = bid.created_at ? new Date(bid.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '';
+
+                const bidItem = document.createElement('div');
+                bidItem.className = 'bid-item';
+                bidItem.innerHTML = `
+                    <div class="bid-header">
+                        ${driverAvatar}
+                        <span class="bid-driver">${driverName}</span>
+                    </div>
+                    <div class="bid-details">
+                        <div class="bid-price">$${bid.estimated_price || 0}</div>
+                        <div class="bid-time">${bid.estimated_time || 0} min</div>
+                        <div class="bid-date">${createdTime}</div>
+                    </div>
+                    <button class="bid-accept-btn" data-bid-id="${bid.id}">${this.t('transit.bid_accept_label')}</button>
+                `;
+                bidListEl.appendChild(bidItem);
+            }
+
+            // Add event listeners to accept buttons
+            bidListEl.querySelectorAll('.bid-accept-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const bidId = e.target.dataset.bidId;
+                    this.acceptBid(bidId);
+                });
+            });
+
+        } catch (err) {
+            console.warn('[ride] load bids:', err.message);
         }
     }
 

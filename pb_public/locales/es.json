@@ -7,11 +7,11 @@
         "offline": "sin conexión",
         "updated": "Actualizado:",
         "back": "Volver al portal",
-        "app_bus": "Bus",
-        "app_moto": "Mototaxis",
+        "app_bus": "Community Bus",
+        "app_moto": "Moto Taxi",
         "app_drive": "Drive",
         "app_fishing": "Pesca",
-        "app_parque": "Parque",
+        "app_parque": "Travel",
         "on_duty": "en servicio",
         "requesting": "pidiendo",
         "waiting": "esperando",
@@ -19,17 +19,20 @@
         "app_austed": "A-Usted"
     },
     "app": {
-        "title": "Transporte Comunitario",
+        "title": "Moto Taxi",
         "passenger_mode": "Cliente / Client",
         "driver_mode": "Conductor / Driver",
         "loading": "Cargando...",
         "error": "Ocurrió un error",
-        "welcome_title": "Transporte Comunitario",
+        "welcome_title": "Moto Taxi",
         "welcome_subtitle": "¿Cómo vas a usar la app?",
         "lang_title": "Idioma / Language",
         "role_title": "Elige tu rol",
         "client_label": "Cliente",
-        "driver_label": "Conductor"
+        "driver_label": "Conductor",
+        "title_moto": "Moto Taxi",
+        "title_bus": "Community Bus",
+        "title_drive": "Drive"
     },
     "map": {
         "center": "Centrar en mi ubicación",
@@ -56,6 +59,7 @@
         "request_title": "Pedir un viaje",
         "your_name_optional": "Tu nombre (opcional)",
         "destination_optional": "Destino (opcional)",
+        "destination_required": "Debes ingresar un destino para que los conductores cotizen",
         "type_place": "Escribir lugar",
         "pick_on_map": "Elegir en el mapa",
         "dest_placeholder": "Ej. Tienda",
@@ -162,7 +166,8 @@
         "loc_status_no_signal": "Sin señal GPS: sigue el paso 1 (ubicación del teléfono).",
         "loc_found": "¡Ubicación lista!",
         "loc_banner": "Activa tu ubicación para ver qué hay cerca de ti",
-        "loc_activate": "Activar"
+        "loc_activate": "Activar",
+        "destination_label": "Destino"
     },
     "fishing": {
         "track_vessels": "Rastrear embarcaciones",

@@ -179,12 +179,20 @@ class RideApp {
         if (savedRole === 'driver' && pb && pb.authStore && pb.authStore.isValid) {
             this.role = 'driver';
             this.maybePromptLocation();
-            this.hide('role-overlay');
+            var _ov2 = this.$('role-overlay');
+            if (_ov2) _ov2.style.display = 'none';
             this.afterAuth().catch(() => {});
             return Promise.resolve();
         }
         this.maybePromptLocation();
-        this.show('role-overlay');
+        var _pending = localStorage.getItem('rtm_pending_role');
+        if (_pending) {
+            localStorage.removeItem('rtm_pending_role');
+            this.chooseRole(_pending);
+            return Promise.resolve();
+        }
+        var _ov = this.$('role-overlay');
+        if (_ov) _ov.style.display = 'flex';
         return new Promise((resolve) => {
             this._roleResolve = resolve;
         });
@@ -193,7 +201,9 @@ class RideApp {
     chooseRole(role) {
         this.role = role;
         localStorage.setItem('rtm_role', role);
-        this.hide('role-overlay');
+        localStorage.removeItem('rtm_pending_role');
+        var _ov = this.$('role-overlay');
+        if (_ov) _ov.style.display = 'none';
         if (this._roleResolve) {
             const resolve = this._roleResolve;
             this._roleResolve = null;
@@ -541,11 +551,16 @@ class RideApp {
     }
 
     async createRequest() {
-        // Name and destination are optional; the request works without either.
+        // Name is optional; destination is required for marketplace apps
+        // (drivers need it to set a price) but optional for regular transit.
         // Fixed-route apps (bus) never carry a destination.
         const name = this.val('req-name').trim() || 'Cliente';
         if (!this.isFixedRoute && !this.dest && this.val('req-dest').trim()) {
             await this.typeDestination();
+        }
+        if (this.isMarketplace && !this.isFixedRoute && !this.dest) {
+            this.reqError(this.t('transit.destination_required') || 'El destino es obligatorio para pedir un viaje');
+            return;
         }
         const pos = this.geo.getPosition();
         if (!pos) {
@@ -563,6 +578,7 @@ class RideApp {
             this.hide('request-status');
             this.map.removeMarker('dest_pin');
             this.toast(this.t('transit.request_sent'));
+            if (window.setOnMapIndicator) window.setOnMapIndicator(true);
             return;
         }
 
@@ -611,6 +627,7 @@ class RideApp {
             this.map.removeMarker('dest_pin');
             this.acquireWakeLock();
             this.toast(this.t('transit.request_sent'));
+            if (window.setOnMapIndicator) window.setOnMapIndicator(true);
         } catch (err) {
             console.error('[ride] create request failed:', err);
             this.reqError(this.t('transit.request_failed_prefix') + err.message);
@@ -689,6 +706,7 @@ class RideApp {
     }
 
     endOwnRequest(message) {
+        if (window.setOnMapIndicator) window.setOnMapIndicator(false);
         this.ownRequestId = null;
         this.ownRequest = null;
         this.nearestDriverId = null;
@@ -947,7 +965,7 @@ class RideApp {
         }, 900);
         // Driver was on duty before the app was closed/backgrounded: resume
         // publishing immediately instead of forcing a fresh ON DUTY tap.
-        if (this.onDuty) this.resumeDuty();
+        if (this.onDuty) { if (window.setOnMapIndicator) window.setOnMapIndicator(true); this.resumeDuty(); }
         this.toast(this.t('transit.welcome_driver'));
         await this.subscribeRequests();
     }
@@ -1320,8 +1338,10 @@ class RideApp {
         if (!ok) return;
         this.onDuty = on;
         if (on) {
+            if (window.setOnMapIndicator) window.setOnMapIndicator(true);
             this.resumeDuty();
         } else {
+            if (window.setOnMapIndicator) window.setOnMapIndicator(false);
             if (this.publishTimer) {
                 clearInterval(this.publishTimer);
                 this.publishTimer = null;

@@ -7,11 +7,11 @@
         "offline": "offline",
         "updated": "Updated:",
         "back": "Back to portal",
-        "app_bus": "Bus",
-        "app_moto": "Mototaxis",
+        "app_bus": "Community Bus",
+        "app_moto": "Moto Taxi",
         "app_drive": "Drive",
         "app_fishing": "Fishing",
-        "app_parque": "Amusement park",
+        "app_parque": "Travel",
         "on_duty": "on duty",
         "requesting": "requesting",
         "waiting": "waiting",
@@ -19,17 +19,20 @@
         "app_austed": "A-Usted"
     },
     "app": {
-        "title": "Community Transit",
+        "title": "Moto Taxi",
         "passenger_mode": "Client / Cliente",
         "driver_mode": "Driver / Conductor",
         "loading": "Loading...",
         "error": "Error occurred",
-        "welcome_title": "Community Transit",
+        "welcome_title": "Moto Taxi",
         "welcome_subtitle": "How are you going to use the app?",
         "lang_title": "Language / Lenguaje",
         "role_title": "Choose your role / Elige tu rol",
         "client_label": "Client / Cliente",
-        "driver_label": "Driver / Conductor"
+        "driver_label": "Driver / Conductor",
+        "title_moto": "Moto Taxi",
+        "title_bus": "Community Bus",
+        "title_drive": "Drive"
     },
     "map": {
         "center": "Center on my location",
@@ -56,6 +59,7 @@
         "request_title": "Request a ride",
         "your_name_optional": "Your name (optional)",
         "destination_optional": "Destination (optional)",
+        "destination_required": "Please enter a destination so drivers can quote you",
         "type_place": "Type a place",
         "pick_on_map": "Pick on map",
         "dest_placeholder": "e.g. Store",
@@ -162,7 +166,8 @@
         "loc_status_no_signal": "No GPS signal: follow step 1 (phone location).",
         "loc_found": "Location ready!",
         "loc_banner": "Turn on your location to see what's near you",
-        "loc_activate": "Enable"
+        "loc_activate": "Enable",
+        "destination_label": "Destination"
     },
     "fishing": {
         "track_vessels": "Track fishing vessels",

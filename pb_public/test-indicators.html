@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Indicators</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.92);
+            border-top: 1px solid #e2e8f0;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .app-title {
+            font-weight: 700;
+            color: #1e3a8a;
+            font-size: 16px;
+        }
+
+        /* Presence indicators for drivers/clients on map */
+        .presence-indicators {
+            display: flex !important;
+            align-items: center;
+            gap: 12px;
+            margin-left: 12px;
+            z-index: 1;
+            position: relative;
+        }
+
+        .presence-indicator {
+            display: flex !important;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            z-index: 2;
+            position: relative;
+        }
+
+        .presence-indicator.active {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: #10b981;
+        }
+
+        .presence-indicator.inactive {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            opacity: 0.6;
+        }
+
+        .presence-icon {
+            font-size: 14px;
+            line-height: 1;
+            display: block;
+        }
+
+        .presence-count {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e3a8a;
+            min-width: 16px;
+            text-align: center;
+            display: block;
+        }
+
+        .presence-indicator.active .presence-count {
+            color: #10b981;
+        }
+
+        .presence-indicator.inactive .presence-count {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Page for Presence Indicators</h1>
+    <p>This is a simple test to verify the indicators are visible.</p>
+
+    <!-- Navigation Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <a href="/" class="back-link">← Hub</a>
+            <div class="status-indicator">
+                <div class="status-dot" id="connection-status"></div>
+            </div>
+            <span id="app-title" class="app-title">Yucatan</span>
+            <!-- Driver/Client presence indicators -->
+            <div class="presence-indicators" id="presence-indicators" style="display: flex !important;">
+                <div class="presence-indicator inactive" id="drivers-indicator" title="Drivers on map" style="display: flex !important;">
+                    <span class="presence-icon">🚗</span>
+                    <span class="presence-count" id="drivers-count">0</span>
+                </div>
+                <div class="presence-indicator inactive" id="clients-indicator" title="Clients on map" style="display: flex !important;">
+                    <span class="presence-icon">👤</span>
+                    <span class="presence-count" id="clients-count">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Test script to verify the elements exist and are visible
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Test page loaded');
+            
+            const driversIndicator = document.getElementById('drivers-indicator');
+            const clientsIndicator = document.getElementById('clients-indicator');
+            const driversCount = document.getElementById('drivers-count');
+            const clientsCount = document.getElementById('clients-count');
+            
+            console.log('Drivers indicator:', driversIndicator);
+            console.log('Clients indicator:', clientsIndicator);
+            console.log('Drivers count:', driversCount);
+            console.log('Clients count:', clientsCount);
+            
+            if (driversIndicator) {
+                console.log('Drivers indicator display:', window.getComputedStyle(driversIndicator).display);
+            }
+            if (clientsIndicator) {
+                console.log('Clients indicator display:', window.getComputedStyle(clientsIndicator).display);
+            }
+            
+            // Simulate some activity
+            setTimeout(() => {
+                if (driversCount) {
+                    driversCount.textContent = '3';
+                    driversIndicator.classList.remove('inactive');
+                    driversIndicator.classList.add('active');
+                }
+                if (clientsCount) {
+                    clientsCount.textContent = '5';
+                    clientsIndicator.classList.remove('inactive');
+                    clientsIndicator.classList.add('active');
+                }
+                console.log('Updated counts to simulate activity');
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

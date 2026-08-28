@@ -53,7 +53,7 @@
         const REQUEST_MAX_AGE_MS = 240 * 60 * 1000;  // matches server expiry
 
         const map = L.map('map', { zoomControl: true }).setView([20.95, -89.2], 8);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);

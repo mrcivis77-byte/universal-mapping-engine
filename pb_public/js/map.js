@@ -87,6 +87,12 @@ class UniversalMap {
                     iconAnchor: [17, 30],
                     popupAnchor: [0, -30]
                 },
+                'customer-accepted': {
+                    iconUrl: '/images/person-green.svg',
+                    iconSize: [34, 34],
+                    iconAnchor: [17, 30],
+                    popupAnchor: [0, -30]
+                },
                 dest: {
                     iconUrl: '/images/marker-dest.svg',
                     iconSize: [36, 36],
@@ -222,20 +228,19 @@ class UniversalMap {
 
         switch (this.config.tileProvider) {
             case 'cartodb_voyager':
-                tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-                attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-                break;
             case 'osm':
-                tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-                attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+            case 'esri_street':
+            default:
+                tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+                attribution = 'Tiles &copy; Esri &mdash; Source: Esri, TomTom, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap';
                 break;
             case 'satellite':
                 tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
                 attribution = 'Tiles &copy; Esri';
                 break;
-            default:
-                tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-                attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+            case 'opentopomap':
+                tileUrl = 'https://tile.opentopomap.org/{z}/{x}/{y}.png';
+                attribution = '&copy; <a href="https://www.opentopomap.org">OpenTopoMap</a> contributors';
         }
 
         L.tileLayer(tileUrl, {

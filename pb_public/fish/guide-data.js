@@ -18,7 +18,7 @@ window.GUIDE_DATA = [
     "sci": "Megalops atlanticus",
     "where": "Shallow lagoons and mangrove channels, especially at dawn; roll on the surface in warm months.",
     "bait": "Live finger mullet or pilchards; artificial: small paddle-tails, soft plastic mullet, fly deceivers.",
-    "photo": "images/tarpon.jpg",
+    "photo": "images/sabalo.png",
     "attribution": "User photo"
   },
   {
@@ -28,7 +28,7 @@ window.GUIDE_DATA = [
     "sci": "Albula vulpes",
     "where": "Skinny flats and sandy potholes around Progreso and Telchac; tailing at high tide.",
     "bait": "Small shrimp or crab pieces; artificial: gotcha-style flies, tiny jigged shrimp.",
-    "photo": "images/bonefish.png",
+    "photo": "images/macabi.png",
     "attribution": "User photo"
   },
   {
@@ -48,7 +48,7 @@ window.GUIDE_DATA = [
     "sci": "Lutjanus griseus",
     "where": "Around bridge pilings, rock jetties and nearshore reef structure.",
     "bait": "Small live shrimp or sardine chunks; artificial: small jigs tipped with shrimp.",
-    "photo": "images/fish-placeholder.svg",
+    "photo": "images/Pargo.png",
     "attribution": "User photo"
   },
   {
@@ -158,7 +158,7 @@ window.GUIDE_DATA = [
     "sci": "Rhamdia spp.",
     "where": "Freshwater cenotes and connected brackish lagoons inland.",
     "bait": "Dough balls, worms, small fish chunks fished on bottom.",
-    "photo": "images/fish-placeholder.svg",
+    "photo": "images/cenote_catfish.png",
     "attribution": "User photo"
   }
 ];

@@ -69,11 +69,7 @@ class TravelMapModule {
      */
     applyThemeParkStyle() {
         // Custom tile layer with illustrated style
-        const themeParkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            maxZoom: 19,
-            subdomains: 'abcd'
-        });
+        const themeParkTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri &mdash; Source: Esri, TomTom, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap', maxZoom: 19 });
 
         // Remove existing tile layers and add theme park style
         const map = this.map.getMap();

@@ -547,7 +547,7 @@
     if (typeof L === "undefined" || !document.getElementById("spots-map")) return;
     var map = L.map("spots-map").setView([21.43, -89.75], 9);
     window.__map = window.__map || {}; window.__map["tab-spots"] = map;
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
       maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map).on("load", function () { try { map.invalidateSize(); } catch (e) {} });
     [["Progreso Rocky Reef",21.43000,-89.74931],
@@ -570,7 +570,7 @@
     if (typeof L === "undefined" || !document.getElementById("shops-map")) return;
     var map = L.map("shops-map").setView([21.2828, -89.7145], 13);
     window.__map = window.__map || {}; window.__map["tab-shops"] = map;
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
       maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map).on("load", function () { try { map.invalidateSize(); } catch (e) {} });
     var catMap = {

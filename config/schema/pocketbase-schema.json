@@ -33,6 +33,7 @@
         { "name": "name", "type": "text" },
         { "name": "vehicle_type", "type": "select", "options": { "values": ["mototaxi", "bus"] }, "required": true },
         { "name": "license_plate", "type": "text", "required": true },
+        { "name": "avatar", "type": "file" },
         { "name": "latitude", "type": "number", "required": true },
         { "name": "longitude", "type": "number", "required": true },
         { "name": "heading", "type": "number" },
@@ -41,6 +42,23 @@
         { "name": "on_duty", "type": "bool" },
         { "name": "route", "type": "text" },
         { "name": "rating", "type": "number" }
+      ]
+    },
+    "bids": {
+      "type": "base",
+      "fields": [
+        { "name": "town", "type": "relation", "collection": "towns", "required": true },
+        { "name": "driver", "type": "relation", "collection": "drivers" },
+        { "name": "request", "type": "relation", "collection": "ride_requests" },
+        { "name": "pickup_lat", "type": "number", "required": true },
+        { "name": "pickup_lng", "type": "number", "required": true },
+        { "name": "dest_lat", "type": "number" },
+        { "name": "dest_lng", "type": "number" },
+        { "name": "destination", "type": "text" },
+        { "name": "estimated_price", "type": "number" },
+        { "name": "estimated_time", "type": "number" },
+        { "name": "status", "type": "select", "options": { "values": ["pending", "accepted", "rejected"] }, "required": true },
+        { "name": "created_at", "type": "date" }
       ]
     },
     "ride_requests": {
@@ -53,7 +71,8 @@
         { "name": "dest_lat", "type": "number" },
         { "name": "dest_lng", "type": "number" },
         { "name": "destination", "type": "text" },
-        { "name": "status", "type": "select", "options": { "values": ["pending", "completed", "cancelled"] }, "required": true }
+        { "name": "status", "type": "select", "options": { "values": ["pending", "completed", "cancelled"] }, "required": true },
+        { "name": "bidding_status", "type": "select", "options": { "values": ["none", "bidding", "assigned", "completed"] } }
       ]
     },
     "vessels": {
